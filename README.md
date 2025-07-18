@@ -194,7 +194,7 @@ src/
 ├── services/
 │   ├── embeddingService.ts  # Vector database operations
 │   ├── llmService.ts        # OpenRouter LLM integration
-│   └── ragService.ts        # RAG orchestration
+│   └── orchestrationService.ts  # Response orchestration (RAG, MCP, LLM)
 ├── utils/
 │   └── logger.ts            # Winston logging setup
 └── index.ts                 # Main server entry point
@@ -318,7 +318,7 @@ docker restart <container-id>
 # Debug search results
 npm run debug-embeddings
 
-# Check similarity threshold in src/services/ragService.ts
+# Check similarity threshold in src/services/orchestrationService.ts
 # Current threshold: 1.3 (adjust based on your content)
 ```
 

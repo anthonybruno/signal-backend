@@ -4,14 +4,14 @@ import { asyncHandler, ApiError } from '@/middleware/errorHandler';
 import { validateChatMessage, sanitizeInput } from '@/middleware/validation';
 import { logger } from '@/utils/logger';
 import { mcpClient } from '@/services/mcpClientService';
-import { RAGService, ChatResponse } from '@/services/ragService';
+import { OrchestrationService, ChatResponse } from '@/services/orchestrationService';
 import { MCPDirectResponse } from '@/types';
 import { MESSAGES } from '@/utils/messages';
 
 const router = Router();
 
-// Initialize RAG service
-const ragService = new RAGService();
+// Initialize orchestration service
+const orchestrationService = new OrchestrationService();
 
 // Type guards
 function isMCPDirectResponse(result: ChatResponse): result is MCPDirectResponse {
@@ -55,8 +55,8 @@ router.post(
     validatedData.message = sanitizeInput(validatedData.message);
 
     try {
-      // Generate response using RAG or direct MCP
-      const result = await ragService.generateResponse(validatedData);
+      // Generate response using orchestration service
+      const result = await orchestrationService.generateResponse(validatedData);
 
       // Handle different response types
       if (isMCPDirectResponse(result)) {
@@ -123,7 +123,7 @@ router.post(
       let responseType = 'rag_response';
 
       // Generate streaming response
-      const result = await ragService.generateStreamingResponse(
+      const result = await orchestrationService.generateStreamingResponse(
         validatedData,
         (chunk: string) => {
           // Send each chunk as it arrives

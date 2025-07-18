@@ -41,7 +41,7 @@ interface SmartRoutingDecision {
   reasoning: string;
 }
 
-export class RAGService {
+export class OrchestrationService {
   private embeddingService: EmbeddingService;
   private llmService: LLMService;
 
