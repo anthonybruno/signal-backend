@@ -21,6 +21,10 @@ export const initializeChromaDB = async (): Promise<AxiosInstance> => {
     chromaClient = axios.create({
       baseURL,
       timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
     });
 
     // Test connection with v2 API
@@ -39,7 +43,8 @@ export const getCollectionForQuery = async (collectionName: string) => {
   const client = await initializeChromaDB();
 
   try {
-    // Get existing collection (no embedding function needed for querying)
+    // For v2 API, try the correct endpoint structure
+    // ChromaDB v2 might use a different path or require different parameters
     await client.get(`/api/v2/collections/${collectionName}`);
 
     logger.info(`Using collection for querying: ${collectionName}`);
@@ -54,6 +59,11 @@ export const getCollectionForQuery = async (collectionName: string) => {
     };
   } catch (error) {
     logger.error(`Collection ${collectionName} not found:`, error);
+    // Log more details about the error to help debug
+    if (axios.isAxiosError(error)) {
+      logger.error(`HTTP Status: ${error.response?.status}`);
+      logger.error(`Response data: ${JSON.stringify(error.response?.data)}`);
+    }
     throw new Error(
       `Collection ${collectionName} not found. Run embedding setup in RAG repo first.`,
     );
