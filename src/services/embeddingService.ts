@@ -60,7 +60,7 @@ export class EmbeddingService {
                 distance?: number;
                 id?: string;
               }) => ({
-                content: result.content!,
+                content: result.content as string,
                 metadata: result.metadata ?? undefined,
                 distance: result.distance,
                 id: result.id,
