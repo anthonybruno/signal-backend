@@ -3,9 +3,7 @@ app = "tonybot-backend"
 primary_region = "den"  # Denver, Colorado (US)
 
 [build]
-  dockerfile = "../../Dockerfile"
-  context = "../.."
-  target = "backend"
+  dockerfile = "Dockerfile"
 
 [env]
   NODE_ENV = "production"
