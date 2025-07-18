@@ -279,6 +279,17 @@ RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
 ```
 
+### Fly.io Deployment
+
+When deploying to Fly.io, you need to set environment variables as secrets:
+
+```bash
+# Set your environment variables as secrets
+fly secrets set VARIABLE_NAME=value
+```
+
+**Important**: Fly.io secrets are separate from your local `.env` file. You must set them manually after deployment.
+
 ### Deployment Steps
 
 1. **Build the application:** `npm run build`
