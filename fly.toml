@@ -1,6 +1,5 @@
-# Fly.io configuration for Signal Backend
-app = "tonybot-backend"
-primary_region = "den"  # Denver, Colorado (US)
+app = "signal-backend"
+primary_region = "dfw"  # Dallas
 
 [build]
   dockerfile = "Dockerfile"
