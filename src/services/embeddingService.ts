@@ -1,4 +1,5 @@
 import { getCollectionForQuery } from '@/config/database';
+import { getEnv } from '@/config/env';
 import { logger } from '@/utils/logger';
 
 export interface SearchResult {
@@ -11,11 +12,19 @@ export interface SearchResult {
   }>;
 }
 
+interface ChromaDBQueryResult {
+  documents: (string | null)[][];
+  metadatas?: Record<string, unknown>[][];
+  distances?: number[][];
+  ids?: string[][];
+}
+
 export class EmbeddingService {
   private collectionName: string;
 
   constructor() {
-    this.collectionName = 'signal_knowledge';
+    const env = getEnv();
+    this.collectionName = env.CHROMA_COLLECTION;
   }
 
   /**
@@ -26,36 +35,41 @@ export class EmbeddingService {
     try {
       const collection = await getCollectionForQuery(this.collectionName);
 
-      const results = await collection.query({
-        queryTexts: [query],
-        nResults,
-      });
+      const results = (await collection.query({
+        query_texts: [query], // Note: changed from queryTexts to query_texts (ChromaDB API format)
+        n_results: nResults, // Note: changed from nResults to n_results
+      })) as ChromaDBQueryResult;
 
-      logger.info(
-        `�� Searching for: "${query}" (found ${results.documents[0]?.length || 0} results)`,
-      );
+      logger.info(`Searching for: "${query}" (found ${results.documents[0]?.length ?? 0} results)`);
 
       return {
         query,
         results:
           results.documents[0]
-            ?.map((doc, index) => ({
+            ?.map((doc: string | null, index: number) => ({
               content: doc,
-              metadata: results.metadatas[0]?.[index],
+              metadata: results.metadatas?.[0]?.[index],
               distance: results.distances?.[0]?.[index],
-              id: results.ids[0]?.[index],
+              id: results.ids?.[0]?.[index],
             }))
-            .filter((result) => result.content !== null)
-            .map((result) => ({
-              content: result.content!,
-              metadata: result.metadata ?? undefined,
-              distance: result.distance,
-              id: result.id,
-            })) || [],
+            .filter((result: { content: string | null }) => result.content !== null)
+            .map(
+              (result: {
+                content: string | null;
+                metadata?: Record<string, unknown>;
+                distance?: number;
+                id?: string;
+              }) => ({
+                content: result.content!,
+                metadata: result.metadata ?? undefined,
+                distance: result.distance,
+                id: result.id,
+              }),
+            ) ?? [],
       };
     } catch (error) {
-      logger.error('❌ Error searching documents:', error);
-      logger.warn('⚠️  ChromaDB unavailable, returning empty search results');
+      logger.error('Error searching documents:', error);
+      logger.warn('ChromaDB unavailable, returning empty search results');
 
       // Return empty results instead of throwing to allow graceful degradation
       return {
@@ -70,8 +84,14 @@ export class EmbeddingService {
    */
   async getCollectionInfo() {
     try {
-      const collection = await getCollectionForQuery(this.collectionName);
-      const count = await collection.count();
+      const client = await getCollectionForQuery(this.collectionName);
+
+      // Get count via HTTP API
+      const countResponse = (await client.query({
+        query_texts: [''],
+        n_results: 1,
+      })) as ChromaDBQueryResult;
+      const count = countResponse.ids?.[0]?.length ?? 0;
 
       return {
         name: this.collectionName,
@@ -79,7 +99,7 @@ export class EmbeddingService {
         status: 'available',
       };
     } catch (error) {
-      logger.error('❌ Error getting collection info:', error);
+      logger.error('Error getting collection info:', error);
       return {
         name: this.collectionName,
         documentCount: 0,

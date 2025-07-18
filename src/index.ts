@@ -14,10 +14,10 @@ import healthRoutes from '@/routes/health';
 import chatRoutes from '@/routes/chat';
 
 // Add immediate console logging for debugging
-console.log('🚀 Starting TonyBot Backend...');
-console.log(`📁 Current working directory: ${process.cwd()}`);
-console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`🌐 PORT: ${process.env.PORT ?? 3000}`);
+console.log('Starting TonyBot Backend...');
+console.log(`Current working directory: ${process.cwd()}`);
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`PORT: ${process.env.PORT ?? 3000}`);
 
 const app = express();
 const PORT = process.env['PORT'] ?? 3000;
@@ -76,16 +76,16 @@ app.use((req, res) => {
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// ✅ SIMPLIFIED: Just initialize ChromaDB connection (no embedding generation)
+// SIMPLIFIED: Just initialize ChromaDB connection (no embedding generation)
 const initializeServices = async () => {
   try {
-    console.log('�� Initializing ChromaDB connection...');
+    console.log('Initializing ChromaDB connection...');
     await initializeChromaDB();
-    console.log('✅ ChromaDB connection established');
-    logger.info('✅ Backend ready: ChromaDB connection established');
+    console.log('ChromaDB connection established');
+    logger.info('Backend ready: ChromaDB connection established');
   } catch (error) {
-    console.error('❌ ChromaDB connection failed:', error);
-    logger.error('❌ Backend degraded: ChromaDB connection failed. RAG features will be disabled.');
+    console.error('ChromaDB connection failed:', error);
+    logger.error('Backend degraded: ChromaDB connection failed. RAG features will be disabled.');
     if (process.env.LOG_LEVEL === 'debug') {
       logger.error(error);
     }
@@ -93,10 +93,10 @@ const initializeServices = async () => {
 };
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT} [${process.env['NODE_ENV'] ?? 'development'}]`);
-  console.log(`🔒 CORS origins: ${corsOptions.origin}`);
-  logger.info(`🚀 Server running on port ${PORT} [${process.env['NODE_ENV'] ?? 'development'}]`);
-  logger.info(`🔒 CORS origins: ${corsOptions.origin}`);
+  console.log(`Server running on port ${PORT} [${process.env['NODE_ENV'] ?? 'development'}]`);
+  console.log(`CORS origins: ${corsOptions.origin}`);
+  logger.info(`Server running on port ${PORT} [${process.env['NODE_ENV'] ?? 'development'}]`);
+  logger.info(`CORS origins: ${corsOptions.origin}`);
   initializeServices();
 });
 

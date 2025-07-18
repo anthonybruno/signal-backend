@@ -1,10 +1,10 @@
-import { ChromaClient } from 'chromadb';
+import axios, { AxiosInstance } from 'axios';
 import { getEnv } from '@/config/env';
 import { logger } from '@/utils/logger';
 
-let chromaClient: ChromaClient | null = null;
+let chromaClient: AxiosInstance | null = null;
 
-export const initializeChromaDB = async (): Promise<ChromaClient> => {
+export const initializeChromaDB = async (): Promise<AxiosInstance> => {
   if (chromaClient) {
     return chromaClient;
   }
@@ -12,22 +12,20 @@ export const initializeChromaDB = async (): Promise<ChromaClient> => {
   const env = getEnv();
 
   try {
-    // Initialize ChromaDB client
-    const { ChromaClient } = await import('chromadb');
-
     // Determine protocol based on port
     const protocol = env.CHROMA_PORT === 443 ? 'https' : 'http';
-    const path = `${protocol}://${env.CHROMA_HOST}${env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : ''}`;
+    const baseURL = `${protocol}://${env.CHROMA_HOST}${env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : ''}`;
 
-    logger.info(`🔗 Connecting to ChromaDB at: ${path}`);
+    logger.info(`Connecting to ChromaDB at: ${baseURL}`);
 
-    chromaClient = new ChromaClient({
-      path,
+    chromaClient = axios.create({
+      baseURL,
+      timeout: 10000,
     });
 
-    // Test connection
-    await chromaClient.heartbeat();
-    logger.info('✅ ChromaDB connection established');
+    // Test connection with v2 API
+    await chromaClient.get('/api/v2/heartbeat');
+    logger.info('ChromaDB connection established');
 
     return chromaClient;
   } catch (error) {
@@ -42,12 +40,18 @@ export const getCollectionForQuery = async (collectionName: string) => {
 
   try {
     // Get existing collection (no embedding function needed for querying)
-    const collection = await client.getCollection({
-      name: collectionName,
-    });
+    await client.get(`/api/v2/collections/${collectionName}`);
 
-    logger.info(`📚 Using collection for querying: ${collectionName}`);
-    return collection;
+    logger.info(`Using collection for querying: ${collectionName}`);
+    return {
+      query: async (params: Record<string, unknown>) => {
+        const queryResponse = await client.post(
+          `/api/v2/collections/${collectionName}/query`,
+          params,
+        );
+        return queryResponse.data;
+      },
+    };
   } catch (error) {
     logger.error(`Collection ${collectionName} not found:`, error);
     throw new Error(

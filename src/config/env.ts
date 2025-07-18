@@ -10,6 +10,7 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   DEFAULT_MODEL: z.string().min(1),
   RAG_ROUTING_MODEL: z.string().min(1),
+  CHROMA_COLLECTION: z.string().min(1),
 
   // Optional with simple defaults
   PORT: z.string().default('3000').transform(Number),
