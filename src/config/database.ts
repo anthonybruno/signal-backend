@@ -1,10 +1,10 @@
-import axios, { AxiosInstance } from 'axios';
+import { ChromaClient } from 'chromadb';
 import { getEnv } from '@/config/env';
 import { logger } from '@/utils/logger';
 
-let chromaClient: AxiosInstance | null = null;
+let chromaClient: ChromaClient | null = null;
 
-export const initializeChromaDB = async (): Promise<AxiosInstance> => {
+export const initializeChromaDB = async (): Promise<ChromaClient> => {
   if (chromaClient) {
     return chromaClient;
   }
@@ -12,23 +12,21 @@ export const initializeChromaDB = async (): Promise<AxiosInstance> => {
   const env = getEnv();
 
   try {
+    // Initialize ChromaDB client (same as RAG service)
+    const { ChromaClient } = await import('chromadb');
+
     // Determine protocol based on port
     const protocol = env.CHROMA_PORT === 443 ? 'https' : 'http';
-    const baseURL = `${protocol}://${env.CHROMA_HOST}${env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : ''}`;
+    const path = `${protocol}://${env.CHROMA_HOST}${env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : ''}`;
 
-    logger.info(`Connecting to ChromaDB at: ${baseURL}`);
+    logger.info(`Connecting to ChromaDB at: ${path}`);
 
-    chromaClient = axios.create({
-      baseURL,
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+    chromaClient = new ChromaClient({
+      path,
     });
 
-    // Test connection with v2 API
-    await chromaClient.get('/api/v2/heartbeat');
+    // Test connection
+    await chromaClient.heartbeat();
     logger.info('ChromaDB connection established');
 
     return chromaClient;
@@ -43,27 +41,15 @@ export const getCollectionForQuery = async (collectionName: string) => {
   const client = await initializeChromaDB();
 
   try {
-    // For v2 API, try the correct endpoint structure
-    // ChromaDB v2 might use a different path or require different parameters
-    await client.get(`/api/v2/collections/${collectionName}`);
+    // Get existing collection (same as RAG service)
+    const collection = await client.getCollection({
+      name: collectionName,
+    });
 
     logger.info(`Using collection for querying: ${collectionName}`);
-    return {
-      query: async (params: Record<string, unknown>) => {
-        const queryResponse = await client.post(
-          `/api/v2/collections/${collectionName}/query`,
-          params,
-        );
-        return queryResponse.data;
-      },
-    };
+    return collection;
   } catch (error) {
     logger.error(`Collection ${collectionName} not found:`, error);
-    // Log more details about the error to help debug
-    if (axios.isAxiosError(error)) {
-      logger.error(`HTTP Status: ${error.response?.status}`);
-      logger.error(`Response data: ${JSON.stringify(error.response?.data)}`);
-    }
     throw new Error(
       `Collection ${collectionName} not found. Run embedding setup in RAG repo first.`,
     );

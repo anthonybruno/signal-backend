@@ -12,13 +12,6 @@ export interface SearchResult {
   }>;
 }
 
-interface ChromaDBQueryResult {
-  documents: (string | null)[][];
-  metadatas?: Record<string, unknown>[][];
-  distances?: number[][];
-  ids?: string[][];
-}
-
 export class EmbeddingService {
   private collectionName: string;
 
@@ -35,10 +28,10 @@ export class EmbeddingService {
     try {
       const collection = await getCollectionForQuery(this.collectionName);
 
-      const results = (await collection.query({
-        query_texts: [query], // Note: changed from queryTexts to query_texts (ChromaDB API format)
-        n_results: nResults, // Note: changed from nResults to n_results
-      })) as ChromaDBQueryResult;
+      const results = await collection.query({
+        queryTexts: [query],
+        nResults,
+      });
 
       logger.info(`Searching for: "${query}" (found ${results.documents[0]?.length ?? 0} results)`);
 
@@ -48,7 +41,7 @@ export class EmbeddingService {
           results.documents[0]
             ?.map((doc: string | null, index: number) => ({
               content: doc,
-              metadata: results.metadatas?.[0]?.[index],
+              metadata: results.metadatas?.[0]?.[index] ?? undefined,
               distance: results.distances?.[0]?.[index],
               id: results.ids?.[0]?.[index],
             }))
@@ -56,7 +49,7 @@ export class EmbeddingService {
             .map(
               (result: {
                 content: string | null;
-                metadata?: Record<string, unknown>;
+                metadata?: Record<string, unknown> | null;
                 distance?: number;
                 id?: string;
               }) => ({
@@ -84,14 +77,10 @@ export class EmbeddingService {
    */
   async getCollectionInfo() {
     try {
-      const client = await getCollectionForQuery(this.collectionName);
+      const collection = await getCollectionForQuery(this.collectionName);
 
-      // Get count via HTTP API
-      const countResponse = (await client.query({
-        query_texts: [''],
-        n_results: 1,
-      })) as ChromaDBQueryResult;
-      const count = countResponse.ids?.[0]?.length ?? 0;
+      // Get count using the collection's count method
+      const count = await collection.count();
 
       return {
         name: this.collectionName,
