@@ -247,24 +247,27 @@ Examples:
     const routing = await this.smartRouting(message, conversationHistory);
 
     if (routing.directResponse && routing.mcpTools.length > 0) {
-      // Direct MCP tool response (no streaming for direct responses)
-      return await this.executeDirectMCPFlow(request, routing.mcpTools);
+      // Direct MCP tool response WITH streaming
+      return await this.executeDirectMCPFlow(request, routing.mcpTools, onChunk, onToolsStarting);
     } else if (routing.useRAG) {
-      // RAG-based response with streaming
-      return await this.executeRAGFlow(request);
+      // RAG-based response WITH streaming
+      return await this.executeRAGFlow(request, onChunk);
     } else if (routing.mcpTools.length > 0) {
       // MCP tools with LLM processing and streaming
       return await this.executeMCPFlow(request, routing.mcpTools, onChunk, onToolsStarting);
     } else {
-      // Direct LLM response with streaming
-      return await this.executeDirectLLMFlow(request);
+      // Direct LLM response WITH streaming
+      return await this.executeDirectLLMFlow(request, onChunk);
     }
   }
 
   /**
    * Unified RAG execution that handles both streaming and non-streaming
    */
-  private async executeRAGFlow(request: ChatRequest): Promise<ChatResponse> {
+  private async executeRAGFlow(
+    request: ChatRequest,
+    onChunk?: (chunk: string) => void,
+  ): Promise<ChatResponse> {
     const { message, conversationHistory = [] } = request;
 
     try {
@@ -274,7 +277,7 @@ Examples:
 
       if (retrievedChunks.length === 0) {
         logger.warn('No RAG context found, falling back to direct LLM response');
-        return await this.executeDirectLLMFlow(request);
+        return await this.executeDirectLLMFlow(request, onChunk);
       }
 
       // Build context from retrieved chunks
@@ -292,12 +295,19 @@ Examples:
         { role: 'user', content: contextMessage },
       ];
 
-      // Generate response with context
-      const response = await this.llmService.generateResponse(messages, {
-        model: request.model ?? 'gpt-4o-mini',
-        temperature: request.temperature ?? 0.7,
-        maxTokens: 1000,
-      });
+      // Generate response - streaming or non-streaming based on callback presence
+      const response = onChunk
+        ? await this.llmService.generateStreamingResponse(messages, {
+            model: request.model ?? 'gpt-4o-mini',
+            temperature: request.temperature ?? 0.7,
+            maxTokens: 1000,
+            onChunk,
+          })
+        : await this.llmService.generateResponse(messages, {
+            model: request.model ?? 'gpt-4o-mini',
+            temperature: request.temperature ?? 0.7,
+            maxTokens: 1000,
+          });
 
       return {
         response: response.message,
@@ -309,7 +319,7 @@ Examples:
     } catch (error) {
       logger.error('RAG flow failed:', error);
       // Fallback to direct LLM response
-      return await this.executeDirectLLMFlow(request);
+      return await this.executeDirectLLMFlow(request, onChunk);
     }
   }
 
@@ -352,12 +362,19 @@ Examples:
         { role: 'user', content: contextMessage },
       ];
 
-      // Generate response with tool context
-      const response = await this.llmService.generateResponse(messages, {
-        model: request.model ?? 'gpt-4o-mini',
-        temperature: request.temperature ?? 0.7,
-        maxTokens: 1000,
-      });
+      // Generate response - streaming or non-streaming based on callback presence
+      const response = onChunk
+        ? await this.llmService.generateStreamingResponse(messages, {
+            model: request.model ?? 'gpt-4o-mini',
+            temperature: request.temperature ?? 0.7,
+            maxTokens: 1000,
+            onChunk,
+          })
+        : await this.llmService.generateResponse(messages, {
+            model: request.model ?? 'gpt-4o-mini',
+            temperature: request.temperature ?? 0.7,
+            maxTokens: 1000,
+          });
 
       return {
         response: response.message,
@@ -369,18 +386,25 @@ Examples:
     } catch (error) {
       logger.error('MCP flow failed:', error);
       // Fallback to direct LLM response
-      return await this.executeDirectLLMFlow(request);
+      return await this.executeDirectLLMFlow(request, onChunk);
     }
   }
 
   /**
-   * Execute direct MCP tool calls without LLM processing
+   * Execute direct MCP tool calls with streaming
    */
   private async executeDirectMCPFlow(
     request: ChatRequest,
     toolNames: string[],
+    onChunk?: (chunk: string) => void,
+    onToolsStarting?: (tools: string[]) => void,
   ): Promise<MCPDirectResponse> {
     try {
+      // Notify about tools starting (only for streaming requests)
+      if (onChunk && onToolsStarting) {
+        onToolsStarting(toolNames);
+      }
+
       // Create tool calls
       const toolCalls: MCPToolCall[] = toolNames.map((name) => ({
         name,
@@ -390,6 +414,18 @@ Examples:
       // Format response for direct tool calls
       const response = await mcpResponseService.formatDirectResponse(toolCalls);
 
+      // Stream the formatted response if needed
+      if (onChunk) {
+        const formatted = response.formatted;
+        const words = formatted.split(/(\s+)/);
+        for (const word of words) {
+          if (word) {
+            onChunk(word);
+            await new Promise((resolve) => setTimeout(resolve, 25));
+          }
+        }
+      }
+
       return response;
     } catch (error) {
       logger.error('Direct MCP flow failed:', error);
@@ -398,9 +434,12 @@ Examples:
   }
 
   /**
-   * Execute direct LLM response without additional context
+   * Execute direct LLM response with streaming
    */
-  private async executeDirectLLMFlow(request: ChatRequest): Promise<ChatResponse> {
+  private async executeDirectLLMFlow(
+    request: ChatRequest,
+    onChunk?: (chunk: string) => void,
+  ): Promise<ChatResponse> {
     const { message, conversationHistory = [] } = request;
 
     const messages: ChatMessage[] = [
@@ -413,11 +452,18 @@ Examples:
       { role: 'user', content: message },
     ];
 
-    const response = await this.llmService.generateResponse(messages, {
-      model: request.model ?? 'gpt-4o-mini',
-      temperature: request.temperature ?? 0.7,
-      maxTokens: 1000,
-    });
+    const response = onChunk
+      ? await this.llmService.generateStreamingResponse(messages, {
+          model: request.model ?? 'gpt-4o-mini',
+          temperature: request.temperature ?? 0.7,
+          maxTokens: 1000,
+          onChunk,
+        })
+      : await this.llmService.generateResponse(messages, {
+          model: request.model ?? 'gpt-4o-mini',
+          temperature: request.temperature ?? 0.7,
+          maxTokens: 1000,
+        });
 
     return {
       response: response.message,
