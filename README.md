@@ -26,17 +26,17 @@ The backend API acts as the orchestrator of the Signal system. It receives queri
     ▼              ▼              ▼
 RAG Server     MCP Server    Direct Path
 (Personal)    (Live Data)  (to OpenRouter)
-    │             │              │
-    └─────────────┼──────────────┘
-                  │
-                  ▼
+    │              │              │
+    └──────────────┼──────────────┘
+                   │
+                   ▼
           OpenRouter Processing
            (with base prompts)
-                  │
-                  ▼
-          Response Streaming
-                  │
-                  ▼
+                   │
+                   ▼
+           Response Streaming
+                   │
+                   ▼
            Frontend Display
 ```
 
