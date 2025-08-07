@@ -4,6 +4,10 @@
 
 # Signal Backend
 
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-LLM%20API-orange.svg)](https://openrouter.ai/)
+
 [Signal’s](https://github.com/anthonybruno/signal) backend API that orchestrates context, routing, and responses between services.
 
 ## What it does
