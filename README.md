@@ -74,6 +74,15 @@ npm run dev
 - OpenRouter LLM API
 - RESTful endpoint design
 
+## LLM Models
+
+The backend uses different LLM models for different purposes:
+
+- **Intent Analysis & Routing**: [Gemini 2.0 Flash](https://openrouter.ai/google/gemini-2.0-flash-001) for fast, cost-effective model for determining whether to route requests to RAG, MCP tools, or direct LLM processing.
+- **Main Processing**: [Claude 3.5 Sonnet](https://openrouter.ai/anthropic/claude-3.5-sonnet) for high-quality model for generating responses, handling conversation, and processing context.
+
+The system intelligently routes queries based on intent analysis, then uses the appropriate model for the specific task at hand.
+
 ## Architecture Notes
 
 ### Integration Points
