@@ -101,7 +101,7 @@ for the specific task at hand.
 
 - RAG Server: Adds document-based memory and context
 - MCP Server: Adds live data from GitHub, Spotify, and blog feeds
-- Frontend: Receives streamed LLM response via `/api/chat`
+- Frontend: Receives streamed LLM response via `/chat`
 
 ## Development Workflow
 

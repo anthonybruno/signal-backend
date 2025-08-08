@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { chatRateLimit } from '@/middleware/rateLimit';
 import { validateChatMessage } from '@/middleware/validation';
-import { mcpClient } from '@/services/mcpClientService';
 import {
   OrchestrationService,
   type ChatResponse,
@@ -69,7 +68,7 @@ function sendStreamMessage(res: Response, type: string, data: unknown): void {
  * Streaming chat endpoint
  */
 router.post(
-  '/stream',
+  '/',
   chatRateLimit,
   validateChatMessage,
   async (req: Request, res: Response) => {
@@ -109,52 +108,5 @@ router.post(
     }
   },
 );
-
-/**
- * Test endpoint for RAG system
- */
-router.get('/test', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    message: 'RAG system endpoints are ready',
-  });
-});
-
-/**
- * Test MCP connection and tools
- */
-router.get('/test-mcp', async (_req: Request, res: Response) => {
-  try {
-    logger.info('Testing MCP connection...');
-
-    const tools = await mcpClient.listTools();
-    logger.info('Available MCP tools:', tools);
-
-    const spotifyResult = await mcpClient.callTool({
-      name: 'get_current_spotify_track',
-    });
-
-    const githubResult = await mcpClient.callTool({
-      name: 'get_github_activity',
-      arguments: { days: 7 },
-    });
-
-    res.json({
-      success: true,
-      data: {
-        availableTools: tools,
-        spotifyTest: spotifyResult,
-        githubTest: githubResult,
-      },
-    });
-  } catch (error) {
-    logger.error('MCP test failed:', error);
-    res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error ? error.message : MESSAGES.api.mcpTestFailed,
-    });
-  }
-});
 
 export { router };
