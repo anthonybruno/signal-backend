@@ -6,7 +6,6 @@ import helmet from 'helmet';
 
 import { initializeChromaDB } from '@/config/database';
 import { router as chatRoutes } from '@/routes/chat';
-import { router as healthRoutes } from '@/routes/health';
 import { logger } from '@/utils/logger';
 
 dotenv.config();
@@ -60,8 +59,15 @@ app.use((req, _, next) => {
   next();
 });
 
+// Health check route
+app.get('/health', (_, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Routes
-app.use('/api/health', healthRoutes);
 app.use('/api/chat', chatRoutes);
 
 // 404 handler

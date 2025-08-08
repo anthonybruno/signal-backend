@@ -23,7 +23,7 @@ primary_region = "dfw"  # Dallas
     interval = "30s"
     method = "GET"
     timeout = "10s"
-    path = "/api/health"
+    path = "/health"
     protocol = "http"
 
 [metrics]
