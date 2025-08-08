@@ -3,25 +3,12 @@ import { z } from 'zod';
 
 import { chatRateLimit } from '@/middleware/rateLimit';
 import { validateChatMessage } from '@/middleware/validation';
-import {
-  OrchestrationService,
-  type ChatResponse,
-} from '@/services/orchestrationService';
-import type { MCPDirectResponse } from '@/types';
+import { OrchestrationService } from '@/services/orchestrationService';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
 
 const router = Router();
 const orchestrationService = new OrchestrationService();
-
-/**
- * Check if response is a direct MCP response
- */
-function isMCPDirectResponse(
-  result: ChatResponse,
-): result is MCPDirectResponse {
-  return 'type' in result;
-}
 
 /**
  * Validation schema for chat requests
@@ -79,7 +66,7 @@ router.post(
       let content = '';
       let mcpTool: string | undefined;
 
-      const result = await orchestrationService.generateStreamingResponse(
+      await orchestrationService.generateStreamingResponse(
         validatedData,
         (chunk: string) => {
           sendStreamMessage(res, 'chunk', chunk);
@@ -90,10 +77,6 @@ router.post(
           sendStreamMessage(res, 'tools_starting', { tool });
         },
       );
-
-      if (isMCPDirectResponse(result)) {
-        mcpTool = result.mcp_tool;
-      }
 
       sendStreamMessage(res, 'done', {
         content,
