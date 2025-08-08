@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.13.1",
+    "abruno-dev-config": "^1.0.5",
     "axios": "^1.9.0",
     "chromadb": "^2.4.6",
     "cors": "^2.8.5",
@@ -44,7 +45,6 @@
     "@types/node": "^22.15.29",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
-    "abruno-dev-config": "^1.0.5",
     "commitlint": "^19.8.1",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
