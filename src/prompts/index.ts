@@ -90,80 +90,61 @@ export const DIRECT_LLM_SYSTEM_PROMPT =
   'You are Anthony Bruno, a frontend developer and engineering manager. Answer questions naturally and helpfully.';
 
 // Smart routing prompt for determining response strategy
-export const ROUTING_PROMPT = `You are a smart router for Anthony Bruno's AI assistant (frontend developer and engineering manager).
+export const ROUTING_PROMPT = `You are a routing decision engine for Anthony Bruno's AI assistant.
 
-Analyze this query and determine:
-1. Does it need RAG context (Anthony's personal/professional knowledge)?
-2. Does it need live data from MCP tools?
-3. Should it bypass the main LLM for a direct tool response?
+Analyze this query and determine which service should handle it:
 
 Current query: "{query}"
 
 {recentContext}
 
-RAG Knowledge Base contains:
-- **experience.md**: Anthony's professional experience and career background, work history, and career progression
-- **skills.md**: Technical skills (React, TypeScript, JavaScript, frontend development, leadership, management)
-- **projects.md**: Past projects, achievements, and detailed project descriptions
-- **interests.md**: Personal interests, hobbies, and what Anthony enjoys outside of work
-- **values.md**: Personal values, principles, and what Anthony believes in
-- **faq.md**: Frequently asked questions and common topics about Anthony
-- **quotes.md**: Favorite quotes and sayings that inspire Anthony
-- **links.md**: Important links, resources, and references
+## Available Services:
 
-Available MCP Tools:
-- get_current_spotify_track: Get what Anthony is currently listening to on Spotify
-- get_github_activity: Get recent GitHub activity and profile information
-- get_latest_blog_post: Get the latest blog post(s) from Anthony's blog
-- get_project_info: Get information about this project
+**MCP Tools (Live Data):**
+- get_current_spotify_track: Current music playing
+- get_github_activity: Recent GitHub activity and profile
+- get_latest_blog_post: Latest blog post
+- get_project_info: Information about this project
 
-Routing Rules:
-- RAG and MCP are MUTUALLY EXCLUSIVE - never use both
-- Use MCP tools for current/live data requests
-- Use RAG for historical/personal knowledge requests
-- Use directResponse=true ONLY for simple, direct requests for current data (e.g., "What are you listening to?", "What's playing?", "Show me your GitHub activity", "Show me your latest blog post")
-- Use directResponse=false but mcpTools populated when live data needs LLM processing
-- Use RAG=true when asking about Anthony's background, experience, or personal information
-- Use RAG=false for general questions not about Anthony
+**RAG Knowledge Base (Personal Background):**
+- experience.md, skills.md, projects.md, interests.md, values.md, faq.md, quotes.md, links.md
+
+**Direct LLM (General Advice):**
+- For general questions not about Anthony
+
+## Routing Rules:
+
+**Use MCP Tools for:**
+- Current/live data requests
+- "What are you listening to?", "Show me your GitHub", "What's your latest blog post?"
+
+**Use RAG for:**
+- Anthony's background, experience, personal info
+- "What's your React experience?", "What are your values?", "Tell me about your background"
+
+**Use Direct LLM for:**
+- General advice not about Anthony
+- "How do I learn React?", "What's the best way to manage a team?"
 
 Respond ONLY with valid JSON:
 {
   "useRAG": true/false,
   "mcpTool": "tool_name" or "",
-  "directResponse": true/false,
-  "confidence": 0.95,
   "reasoning": "brief explanation"
 }
 
 Examples:
-- "What's your React experience?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about technical skills from skills.md"}
-- "What are your values?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal values from values.md"}
-- "What projects have you worked on?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about past projects from projects.md"}
-- "What are your interests?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal interests from interests.md"}
-- "What are you listening to?" -> {"useRAG": false, "mcpTool": "get_current_spotify_track", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for current music"}
-- "How do I learn React?" -> {"useRAG": false, "mcpTool": "", "directResponse": false, "confidence": 0.92, "reasoning": "general advice, not about Anthony"}
-- "Show me your GitHub activity" -> {"useRAG": false, "mcpTool": "get_github_activity", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for GitHub activity"}
-- "What have you been working on lately?" -> {"useRAG": false, "mcpTool": "get_github_activity", "directResponse": false, "confidence": 0.95, "reasoning": "asking about recent work activity"}
-- "Show me your latest blog post" -> {"useRAG": false, "mcpTool": "get_latest_blog_post", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for latest blog post"}
-- "What are your most recent articles?" -> {"useRAG": false, "mcpTool": "get_latest_blog_post", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for recent blog articles"}
-- "Tell me about your blog" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about the blog in general, not for live data"}
-- "Tell me about this project" -> {"useRAG": false, "mcpTool": "get_project_info", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for project info"}
-- "What do you believe in?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal values from values.md"}`;
+- "What are you listening to?" → {"useRAG": false, "mcpTool": "get_current_spotify_track", "reasoning": "current music request"}
+- "What's your React experience?" → {"useRAG": true, "mcpTool": "", "reasoning": "personal background"}
+- "How do I learn React?" → {"useRAG": false, "mcpTool": "", "reasoning": "general advice"}`;
 
 /**
  * Helper function to format the routing prompt with dynamic values
  */
-export function formatRoutingPrompt(
-  query: string,
-  recentContext?: string,
-): string {
-  const contextSection = recentContext
-    ? `Recent conversation context:\n${recentContext}\n`
-    : '';
-
+export function formatRoutingPrompt(query: string): string {
   return ROUTING_PROMPT.replace('{query}', query).replace(
     '{recentContext}',
-    contextSection,
+    '',
   );
 }
 

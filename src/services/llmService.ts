@@ -6,83 +6,85 @@ import type { ChatMessage, TokenUsage, ChatResponse } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
 
+export interface IntentDecision {
+  useRAG: boolean;
+  mcpTool: string;
+  reasoning: string;
+}
+
 export class LLMService {
-  private client: AxiosInstance;
+  private openRouterClient: AxiosInstance;
   private defaultModel: string;
+  private intentDispatcherModel: string;
 
   constructor() {
     const env = getEnv();
 
     this.defaultModel = env.DEFAULT_MODEL;
-    this.client = axios.create({
+    this.intentDispatcherModel = env.INTENT_DISPATCHER_MODEL;
+    this.openRouterClient = axios.create({
       baseURL: 'https://openrouter.ai/api/v1',
       headers: {
         Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000', // Optional: for analytics
-        'X-Title': 'Portfolio Chat Bot', // Optional: for analytics
+        'X-Title': 'Signal',
       },
       timeout: 30000, // 30 second timeout
     });
   }
 
   /**
-   * Generate a chat completion
+   * Analyze user intent and dispatch to appropriate service
    */
-  async generateResponse(
-    messages: ChatMessage[],
-    options?: {
-      maxTokens: number | undefined;
-    },
-  ): Promise<ChatResponse> {
+  async intentDispatcher(prompt: string): Promise<IntentDecision> {
     try {
-      const response = await this.client.post('/chat/completions', {
-        model: this.defaultModel,
-        messages,
-        temperature: 0.7,
-        max_tokens: options?.maxTokens ?? 4000,
-        stream: false,
+      const response = await this.openRouterClient.post('/chat/completions', {
+        model: this.intentDispatcherModel,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 200,
       });
 
-      const { choices, usage, model } = response.data;
+      const { choices } = response.data;
 
       if (!choices || choices.length === 0) {
-        throw new Error(MESSAGES.llm.noResponse);
+        throw new Error('No routing decision received');
       }
 
       const assistantMessage = choices[0].message.content;
 
-      logger.info('LLM response generated', {
-        model,
-        promptTokens: usage?.prompt_tokens,
-        completionTokens: usage?.completion_tokens,
-        totalTokens: usage?.total_tokens,
-      });
+      // Parse the JSON response (handle markdown code blocks)
+      let jsonText = assistantMessage.trim();
 
-      return {
-        message: assistantMessage,
-        model,
-        usage,
-      };
+      // Remove markdown code blocks if present
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+
+      const decision: IntentDecision = JSON.parse(jsonText);
+
+      return decision;
     } catch (error) {
-      logger.error('LLM generation failed:', error);
+      logger.error('Intent analysis failed:', error);
 
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         const errorData = error.response?.data;
 
         if (status === 401) {
-          throw new Error(MESSAGES.llm.invalidApiKey);
+          throw new Error('Invalid API key for intent analysis');
         } else if (status === 429) {
-          throw new Error(MESSAGES.llm.rateLimit);
+          throw new Error('Rate limit exceeded for intent analysis');
         } else if (status === 400) {
           throw new Error(
-            `${MESSAGES.llm.badRequest}: ${errorData?.error?.message ?? 'Bad request'}`,
+            `Bad request for intent analysis: ${errorData?.error?.message ?? 'Bad request'}`,
           );
         }
       }
 
-      throw new Error(MESSAGES.llm.failed);
+      throw new Error('Failed to analyze user intent');
     }
   }
 
@@ -111,7 +113,7 @@ export class LLMService {
     },
   ): Promise<ChatResponse> {
     try {
-      const response = await this.client.post(
+      const response = await this.openRouterClient.post(
         '/chat/completions',
         {
           model: this.defaultModel,
@@ -203,32 +205,6 @@ export class LLMService {
       }
 
       throw new Error(MESSAGES.llm.streamingFailedGeneral);
-    }
-  }
-
-  /**
-   * Test the LLM connection and prompt
-   */
-  async testConnection(): Promise<boolean> {
-    try {
-      const testMessages: ChatMessage[] = [
-        {
-          role: 'system',
-          content: this.getSystemPrompt(),
-        },
-        {
-          role: 'user',
-          content: 'Hi! Can you briefly introduce yourself?',
-        },
-      ];
-
-      await this.generateResponse(testMessages, {
-        maxTokens: 100,
-      });
-      return true;
-    } catch (error) {
-      logger.error('LLM connection test failed:', error);
-      return false;
     }
   }
 }

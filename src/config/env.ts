@@ -9,7 +9,7 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   DEFAULT_MODEL: z.string().min(1),
-  RAG_ROUTING_MODEL: z.string().min(1),
+  INTENT_DISPATCHER_MODEL: z.string().min(1),
   CHROMA_COLLECTION: z.string().min(1),
 
   // Optional with simple defaults
