@@ -232,11 +232,11 @@ Examples:
   }
 
   /**
-   * Unified RAG execution that handles both streaming and non-streaming
+   * Execute RAG flow with streaming
    */
   private async executeRAGFlow(
     request: ChatRequest,
-    onChunk?: (chunk: string) => void,
+    onChunk: (chunk: string) => void,
   ): Promise<void> {
     const { message, conversationHistory = [] } = request;
 
@@ -273,17 +273,11 @@ Examples:
         { role: 'user', content: contextMessage },
       ];
 
-      // Generate response - streaming or non-streaming based on callback presence
-      if (onChunk) {
-        await this.llmService.generateStreamingResponse(messages, {
-          maxTokens: 1000,
-          onChunk,
-        });
-      } else {
-        await this.llmService.generateResponse(messages, {
-          maxTokens: 1000,
-        });
-      }
+      // Generate streaming response
+      await this.llmService.generateStreamingResponse(messages, {
+        maxTokens: 1000,
+        onChunk,
+      });
     } catch (error) {
       logger.error('RAG flow failed:', error);
       // Fallback to direct LLM response
@@ -292,12 +286,12 @@ Examples:
   }
 
   /**
-   * Execute MCP tool calls with LLM processing
+   * Execute MCP tool calls with LLM processing and streaming
    */
   private async executeMCPFlow(
     request: ChatRequest,
     toolNames: string[],
-    onChunk?: (chunk: string) => void,
+    onChunk: (chunk: string) => void,
     onToolsStarting?: (tool: string) => void,
   ): Promise<void> {
     const { message, conversationHistory = [] } = request;
@@ -330,17 +324,11 @@ Examples:
         { role: 'user', content: contextMessage },
       ];
 
-      // Generate response - streaming or non-streaming based on callback presence
-      if (onChunk) {
-        await this.llmService.generateStreamingResponse(messages, {
-          maxTokens: 1000,
-          onChunk,
-        });
-      } else {
-        await this.llmService.generateResponse(messages, {
-          maxTokens: 1000,
-        });
-      }
+      // Generate streaming response
+      await this.llmService.generateStreamingResponse(messages, {
+        maxTokens: 1000,
+        onChunk,
+      });
     } catch (error) {
       logger.error('MCP flow failed:', error);
       // Fallback to direct LLM response
@@ -354,14 +342,12 @@ Examples:
   private async executeDirectMCPFlow(
     request: ChatRequest,
     toolNames: string[],
-    onChunk?: (chunk: string) => void,
+    onChunk: (chunk: string) => void,
     onToolsStarting?: (tool: string) => void,
   ): Promise<void> {
     try {
-      // Notify about tools starting (only for streaming requests)
-      if (onChunk && onToolsStarting) {
-        onToolsStarting(toolNames[0]);
-      }
+      // Notify about tools starting
+      onToolsStarting?.(toolNames[0]);
 
       // Create tool calls
       const toolCalls: MCPToolCall[] = toolNames.map((name) => ({
@@ -372,15 +358,13 @@ Examples:
       // Format response for direct tool calls
       const response = await mcpResponseService.formatDirectResponse(toolCalls);
 
-      // Stream the formatted response if needed
-      if (onChunk) {
-        const { formatted } = response;
-        const words = formatted.split(/(\s+)/);
-        for (const word of words) {
-          if (word) {
-            onChunk(word);
-            await new Promise((resolve) => setTimeout(resolve, 25));
-          }
+      // Stream the formatted response
+      const { formatted } = response;
+      const words = formatted.split(/(\s+)/);
+      for (const word of words) {
+        if (word) {
+          onChunk(word);
+          await new Promise((resolve) => setTimeout(resolve, 25));
         }
       }
     } catch (error) {
@@ -394,7 +378,7 @@ Examples:
    */
   private async executeDirectLLMFlow(
     request: ChatRequest,
-    onChunk?: (chunk: string) => void,
+    onChunk: (chunk: string) => void,
   ): Promise<void> {
     const { message, conversationHistory = [] } = request;
 
@@ -408,15 +392,9 @@ Examples:
       { role: 'user', content: message },
     ];
 
-    if (onChunk) {
-      await this.llmService.generateStreamingResponse(messages, {
-        maxTokens: 1000,
-        onChunk,
-      });
-    } else {
-      await this.llmService.generateResponse(messages, {
-        maxTokens: 1000,
-      });
-    }
+    await this.llmService.generateStreamingResponse(messages, {
+      maxTokens: 1000,
+      onChunk,
+    });
   }
 }
