@@ -160,11 +160,15 @@ class MCPClientService {
       logger.debug('MCP tool response received', { name: toolCall.name });
 
       // Ensure content is properly typed as an array
-      const content = Array.isArray(response.content)
-        ? response.content
-        : response.content
-          ? [{ type: 'text', text: String(response.content) }]
-          : [];
+      const { content: responseContent } = response;
+      let content;
+      if (Array.isArray(responseContent)) {
+        content = responseContent;
+      } else if (responseContent) {
+        content = [{ type: 'text', text: String(responseContent) }];
+      } else {
+        content = [];
+      }
 
       return {
         content,
