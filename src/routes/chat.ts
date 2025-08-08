@@ -77,15 +77,14 @@ router.post(
       const validatedData = chatRequestSchema.parse(req.body);
       setupStreamingHeaders(res);
 
-      let fullResponse = '';
+      let content = '';
       let mcpTool: string | undefined;
-      let responseType = 'rag_response';
 
       const result = await orchestrationService.generateStreamingResponse(
         validatedData,
         (chunk: string) => {
           sendStreamMessage(res, 'chunk', chunk);
-          fullResponse += chunk;
+          content += chunk;
         },
         (tool: string) => {
           mcpTool = tool;
@@ -94,30 +93,12 @@ router.post(
       );
 
       if (isMCPDirectResponse(result)) {
-        responseType = 'mcp_direct';
         mcpTool = result.mcp_tool;
       }
 
-      const metadata = isMCPDirectResponse(result)
-        ? result.metadata
-        : {
-            model: result.model,
-            contextUsed: result.contextUsed,
-            usage: result.usage,
-          };
-
       sendStreamMessage(res, 'done', {
-        fullResponse,
-        responseType,
+        content,
         mcp_tool: mcpTool,
-        metadata,
-      });
-
-      console.log({
-        fullResponse,
-        responseType,
-        mcp_tool: mcpTool,
-        metadata,
       });
 
       res.end();
