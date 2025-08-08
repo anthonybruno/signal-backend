@@ -1,17 +1,15 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
-import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+import dotenv from 'dotenv';
+import express from 'express';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 
-import { logger } from '@/utils/logger';
-import { errorHandler } from '@/middleware/errorHandler';
 import { initializeChromaDB } from '@/config/database';
+import { router as chatRoutes } from '@/routes/chat';
+import { router as healthRoutes } from '@/routes/health';
+import { logger } from '@/utils/logger';
 
-import healthRoutes from '@/routes/health';
-import chatRoutes from '@/routes/chat';
+dotenv.config();
 
 // Add immediate console logging for debugging
 console.log('Starting TonyBot Backend...');
@@ -27,7 +25,9 @@ app.use(helmet());
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:3000'],
+  origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? [
+    'http://localhost:3000',
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -73,9 +73,6 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler (must be last)
-app.use(errorHandler);
-
 // SIMPLIFIED: Just initialize ChromaDB connection (no embedding generation)
 const initializeServices = async () => {
   try {
@@ -85,7 +82,9 @@ const initializeServices = async () => {
     logger.info('Backend ready: ChromaDB connection established');
   } catch (error) {
     console.error('ChromaDB connection failed:', error);
-    logger.error('Backend degraded: ChromaDB connection failed. RAG features will be disabled.');
+    logger.error(
+      'Backend degraded: ChromaDB connection failed. RAG features will be disabled.',
+    );
     if (process.env.LOG_LEVEL === 'debug') {
       logger.error(error);
     }
@@ -93,45 +92,31 @@ const initializeServices = async () => {
 };
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} [${process.env['NODE_ENV'] ?? 'development'}]`);
-  console.log(`CORS origins: ${corsOptions.origin}`);
-  logger.info(`Server running on port ${PORT} [${process.env['NODE_ENV'] ?? 'development'}]`);
-  logger.info(`CORS origins: ${corsOptions.origin}`);
-  initializeServices();
+  console.log(
+    `🚀 TonyBot Backend running on port ${PORT} in ${process.env['NODE_ENV'] ?? 'development'} mode`,
+  );
+  logger.info(`Backend started on port ${PORT}`);
 });
 
+// Initialize services after server starts
+initializeServices().catch((error) => {
+  console.error('Failed to initialize services:', error);
+  logger.error('Failed to initialize services:', error);
+});
+
+// Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  logger.info('SIGTERM received, shutting down gracefully');
+  console.log('SIGTERM received, shutting down gracefully...');
   server.close(() => {
     console.log('Process terminated');
-    logger.info('Process terminated');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  logger.info('SIGINT received, shutting down gracefully');
+  console.log('SIGINT received, shutting down gracefully...');
   server.close(() => {
     console.log('Process terminated');
-    logger.info('Process terminated');
     process.exit(0);
   });
 });
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  logger.error('Uncaught Exception:', error);
-  process.exit(1);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
-export default app;

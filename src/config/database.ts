@@ -1,6 +1,7 @@
-import { ChromaClient } from 'chromadb';
 import { getEnv } from '@/config/env';
 import { logger } from '@/utils/logger';
+
+import type { ChromaClient } from 'chromadb';
 
 let chromaClient: ChromaClient | null = null;
 
@@ -32,7 +33,9 @@ export const initializeChromaDB = async (): Promise<ChromaClient> => {
     return chromaClient;
   } catch (error) {
     logger.error('Failed to connect to ChromaDB:', error);
-    throw new Error('ChromaDB connection failed. Make sure ChromaDB is running.');
+    throw new Error(
+      'ChromaDB connection failed. Make sure ChromaDB is running.',
+    );
   }
 };
 

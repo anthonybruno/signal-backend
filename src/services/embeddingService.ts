@@ -1,4 +1,5 @@
-import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
+import { OpenAIEmbeddingFunction, type ChromaClient } from 'chromadb';
+
 import { getEnv } from '@/config/env';
 import { logger } from '@/utils/logger';
 
@@ -33,7 +34,9 @@ export const initializeChromaDB = async (): Promise<ChromaClient> => {
     return chromaClient;
   } catch (error) {
     logger.error('Failed to connect to ChromaDB:', error);
-    throw new Error('ChromaDB connection failed. Make sure ChromaDB is running.');
+    throw new Error(
+      'ChromaDB connection failed. Make sure ChromaDB is running.',
+    );
   }
 };
 
@@ -97,7 +100,7 @@ export class EmbeddingService {
    * Search for similar content in existing embeddings
    * This method queries pre-computed embeddings from ChromaDB
    */
-  async searchSimilar(query: string, nResults: number = 5): Promise<SearchResult> {
+  async searchSimilar(query: string, nResults = 5): Promise<SearchResult> {
     try {
       const collection = await getCollectionForQuery(this.collectionName);
 
@@ -106,7 +109,9 @@ export class EmbeddingService {
         nResults,
       });
 
-      logger.info(`Searching for: "${query}" (found ${results.documents[0]?.length ?? 0} results)`);
+      logger.info(
+        `Searching for: "${query}" (found ${results.documents[0]?.length ?? 0} results)`,
+      );
 
       return {
         query,
@@ -114,11 +119,13 @@ export class EmbeddingService {
           results.documents[0]
             ?.map((doc: string | null, index: number) => ({
               content: doc,
-              metadata: results.metadatas?.[0]?.[index] ?? undefined,
+              metadata: results.metadatas[0][index],
               distance: results.distances?.[0]?.[index],
-              id: results.ids?.[0]?.[index],
+              id: results.ids[0][index],
             }))
-            .filter((result: { content: string | null }) => result.content !== null)
+            .filter(
+              (result: { content: string | null }) => result.content !== null,
+            )
             .map(
               (result: {
                 content: string | null;

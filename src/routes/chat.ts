@@ -1,24 +1,32 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { asyncHandler, ApiError } from '@/middleware/errorHandler';
-import { validateChatMessage, sanitizeInput } from '@/middleware/validation';
-import { logger } from '@/utils/logger';
+
+import { chatRateLimit } from '@/middleware/rateLimit';
+import { validateChatMessage } from '@/middleware/validation';
 import { mcpClient } from '@/services/mcpClientService';
-import { OrchestrationService, ChatResponse } from '@/services/orchestrationService';
-import { MCPDirectResponse } from '@/types';
+import {
+  OrchestrationService,
+  type ChatResponse,
+} from '@/services/orchestrationService';
+import type { MCPDirectResponse } from '@/types';
+import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
 
 const router = Router();
-
-// Initialize orchestration service
 const orchestrationService = new OrchestrationService();
 
-// Type guards
-function isMCPDirectResponse(result: ChatResponse): result is MCPDirectResponse {
-  return 'type' in result && result.type === 'mcp_direct';
+/**
+ * Check if response is a direct MCP response
+ */
+function isMCPDirectResponse(
+  result: ChatResponse,
+): result is MCPDirectResponse {
+  return 'type' in result;
 }
 
-// Request validation schema
+/**
+ * Validation schema for chat requests
+ */
 const chatRequestSchema = z.object({
   message: z
     .string()
@@ -35,208 +43,137 @@ const chatRequestSchema = z.object({
     )
     .optional()
     .default([]),
-  model: z.string().optional(),
-  temperature: z
-    .number()
-    .min(0, { message: MESSAGES.validation.invalidTemperature })
-    .max(2, { message: MESSAGES.validation.invalidTemperature })
-    .optional(),
 });
 
-// Regular chat endpoint
-router.post(
-  '/',
-  validateChatMessage,
-  asyncHandler(async (req: Request, res: Response) => {
-    // Validate request
-    const validatedData = chatRequestSchema.parse(req.body);
+/**
+ * Sets up SSE headers for streaming response
+ */
+function setupStreamingHeaders(res: Response): void {
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control',
+  });
+}
 
-    // Sanitize the message
-    validatedData.message = sanitizeInput(validatedData.message);
+/**
+ * Sends a streaming message to the client
+ */
+function sendStreamMessage(res: Response, type: string, data: unknown): void {
+  res.write(`${JSON.stringify({ type, data })}\n`);
+}
 
-    try {
-      // Generate response using orchestration service
-      const result = await orchestrationService.generateResponse(validatedData);
-
-      // Handle different response types
-      if (isMCPDirectResponse(result)) {
-        // Direct MCP response
-        res.json({
-          success: true,
-          data: {
-            type: 'mcp_direct',
-            message: result.formatted,
-            service: result.service,
-            data: result.data,
-            metadata: {
-              ...result.metadata,
-              responseType: 'mcp_direct',
-            },
-          },
-        });
-      } else {
-        // Regular RAG response
-        res.json({
-          success: true,
-          data: {
-            type: 'rag_response',
-            message: result.response,
-            model: result.model,
-            contextUsed: result.contextUsed,
-            metadata: {
-              timestamp: new Date().toISOString(),
-              usage: result.usage,
-              responseType: 'rag_response',
-            },
-          },
-        });
-      }
-    } catch {
-      throw new ApiError(MESSAGES.api.failedChat, 500);
-    }
-  }),
-);
-
-// Streaming chat endpoint
+/**
+ * Streaming chat endpoint
+ */
 router.post(
   '/stream',
+  chatRateLimit,
   validateChatMessage,
-  asyncHandler(async (req: Request, res: Response) => {
-    // Validate request
-    const validatedData = chatRequestSchema.parse(req.body);
-
-    // Sanitize the message
-    validatedData.message = sanitizeInput(validatedData.message);
-
+  async (req: Request, res: Response) => {
     try {
-      // Set up Server-Sent Events headers
-      res.writeHead(200, {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control',
-      });
+      const validatedData = chatRequestSchema.parse(req.body);
+      setupStreamingHeaders(res);
 
       let fullResponse = '';
-      let toolsUsed: string[] = [];
+      let mcpTool: string | undefined;
       let responseType = 'rag_response';
 
-      // Generate streaming response
       const result = await orchestrationService.generateStreamingResponse(
         validatedData,
         (chunk: string) => {
-          // Send each chunk as it arrives
-          res.write(`${JSON.stringify({ type: 'chunk', data: chunk })}\n`);
+          sendStreamMessage(res, 'chunk', chunk);
           fullResponse += chunk;
         },
-        (tools: string[]) => {
-          // Send tool notification
-          toolsUsed = tools;
-          res.write(
-            `${JSON.stringify({
-              type: 'tools_starting',
-              data: { tools },
-            })}\n`,
-          );
+        (tool: string) => {
+          mcpTool = tool;
+          sendStreamMessage(res, 'tools_starting', { tool });
         },
       );
 
-      // Determine response type and metadata
       if (isMCPDirectResponse(result)) {
         responseType = 'mcp_direct';
-        toolsUsed = result.metadata.tools;
+        mcpTool = result.mcp_tool;
       }
 
-      // Send completion signal
-      res.write(
-        `${JSON.stringify({
-          type: 'done',
-          data: {
-            fullResponse,
-            responseType,
-            metadata: {
-              ...(isMCPDirectResponse(result)
-                ? result.metadata
-                : {
-                    model: result.model,
-                    contextUsed: result.contextUsed,
-                    toolsUsed,
-                    usage: result.usage,
-                    timestamp: new Date().toISOString(),
-                  }),
-            },
-          },
-        })}\n`,
-      );
+      const metadata = isMCPDirectResponse(result)
+        ? result.metadata
+        : {
+            model: result.model,
+            contextUsed: result.contextUsed,
+            usage: result.usage,
+          };
+
+      sendStreamMessage(res, 'done', {
+        fullResponse,
+        responseType,
+        mcp_tool: mcpTool,
+        metadata,
+      });
+
+      console.log({
+        fullResponse,
+        responseType,
+        mcp_tool: mcpTool,
+        metadata,
+      });
 
       res.end();
     } catch (error) {
       logger.error('Streaming chat error:', error);
-      res.write(
-        `${JSON.stringify({
-          type: 'error',
-          data: { message: MESSAGES.api.failedResponse },
-        })}\n`,
-      );
+      sendStreamMessage(res, 'error', { message: MESSAGES.api.failedResponse });
       res.end();
     }
-  }),
+  },
 );
 
-// Test endpoint for RAG system
-router.get(
-  '/test',
-  asyncHandler(async (_req: Request, res: Response) => {
-    try {
-      res.json({
-        success: true,
-        message: 'RAG system endpoints are ready',
-      });
-    } catch {
-      throw new ApiError(MESSAGES.rag.systemTestFailed, 500);
-    }
-  }),
-);
+/**
+ * Test endpoint for RAG system
+ */
+router.get('/test', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: 'RAG system endpoints are ready',
+  });
+});
 
-// Test MCP
-router.get(
-  '/test-mcp',
-  asyncHandler(async (_req: Request, res: Response) => {
-    try {
-      logger.info('Testing MCP connection...');
+/**
+ * Test MCP connection and tools
+ */
+router.get('/test-mcp', async (_req: Request, res: Response) => {
+  try {
+    logger.info('Testing MCP connection...');
 
-      // Test 1: List available tools
-      const tools = await mcpClient.listTools();
-      logger.info('Available MCP tools:', tools);
+    const tools = await mcpClient.listTools();
+    logger.info('Available MCP tools:', tools);
 
-      // Test 2: Call the Spotify tool
-      const spotifyResult = await mcpClient.callTool({
-        name: 'get_current_spotify_track',
-      });
+    const spotifyResult = await mcpClient.callTool({
+      name: 'get_current_spotify_track',
+    });
 
-      // Test 3: Call the GitHub tool
-      const githubResult = await mcpClient.callTool({
-        name: 'get_github_activity',
-        arguments: { days: 7 },
-      });
+    const githubResult = await mcpClient.callTool({
+      name: 'get_github_activity',
+      arguments: { days: 7 },
+    });
 
-      res.json({
-        success: true,
-        data: {
-          availableTools: tools,
-          spotifyTest: spotifyResult,
-          githubTest: githubResult,
-        },
-      });
-    } catch (error) {
-      logger.error('MCP test failed:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : MESSAGES.api.mcpTestFailed,
-      });
-    }
-  }),
-);
+    res.json({
+      success: true,
+      data: {
+        availableTools: tools,
+        spotifyTest: spotifyResult,
+        githubTest: githubResult,
+      },
+    });
+  } catch (error) {
+    logger.error('MCP test failed:', error);
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : MESSAGES.api.mcpTestFailed,
+    });
+  }
+});
 
-export default router;
+export { router };

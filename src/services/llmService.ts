@@ -1,8 +1,9 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { type AxiosInstance } from 'axios';
+
 import { getEnv } from '@/config/env';
+import type { ChatMessage, TokenUsage, ChatResponse } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
-import { ChatMessage, TokenUsage, ChatResponse } from '@/types';
 
 export class LLMService {
   private client: AxiosInstance;
@@ -30,16 +31,14 @@ export class LLMService {
   async generateResponse(
     messages: ChatMessage[],
     options?: {
-      model: string | undefined;
-      temperature: number | undefined;
       maxTokens: number | undefined;
     },
   ): Promise<ChatResponse> {
     try {
       const response = await this.client.post('/chat/completions', {
-        model: options?.model ?? this.defaultModel,
+        model: this.defaultModel,
         messages,
-        temperature: options?.temperature ?? 0.7,
+        temperature: 0.7,
         max_tokens: options?.maxTokens ?? 4000,
         stream: false,
       });
@@ -84,6 +83,13 @@ export class LLMService {
 
       throw new Error(MESSAGES.llm.failed);
     }
+  }
+
+  /**
+   * Get the default model being used
+   */
+  getDefaultModel(): string {
+    return this.defaultModel;
   }
 
   /**
@@ -179,8 +185,6 @@ ${contextSection}`;
   async generateStreamingResponse(
     messages: ChatMessage[],
     options?: {
-      model: string | undefined;
-      temperature: number | undefined;
       maxTokens: number | undefined;
       onChunk: ((chunk: string) => void) | undefined;
     },
@@ -189,9 +193,9 @@ ${contextSection}`;
       const response = await this.client.post(
         '/chat/completions',
         {
-          model: options?.model ?? this.defaultModel,
+          model: this.defaultModel,
           messages,
-          temperature: options?.temperature ?? 0.7,
+          temperature: 0.7,
           max_tokens: options?.maxTokens ?? 4000,
           stream: true, // Enable streaming
         },
@@ -202,7 +206,7 @@ ${contextSection}`;
 
       let fullContent = '';
       let usage: TokenUsage | undefined = undefined;
-      const model = options?.model ?? this.defaultModel;
+      const model = this.defaultModel;
 
       return new Promise((resolve, reject) => {
         response.data.on('data', (chunk: Buffer) => {
@@ -235,7 +239,7 @@ ${contextSection}`;
 
                 // Capture usage info if available
                 if (parsed.usage) {
-                  usage = parsed.usage;
+                  ({ usage } = parsed);
                 }
               } catch {
                 // Skip invalid JSON lines
@@ -298,8 +302,6 @@ ${contextSection}`;
       ];
 
       await this.generateResponse(testMessages, {
-        model: undefined,
-        temperature: undefined,
         maxTokens: 100,
       });
       return true;

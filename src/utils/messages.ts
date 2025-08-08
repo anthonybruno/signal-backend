@@ -20,14 +20,16 @@ export const MESSAGES = {
 
   // General error messages
   general: {
-    connectionError: "Sorry, I'm having trouble connecting right now. Please try again.",
+    connectionError:
+      "Sorry, I'm having trouble connecting right now. Please try again.",
     parsingError: "I'm having trouble processing the data right now.",
     noData: 'No data available at the moment.',
   },
 
   // MCP service errors
   mcp: {
-    noFormatter: (service: string) => `No formatter registered for service: ${service}`,
+    noFormatter: (service: string) =>
+      `No formatter registered for service: ${service}`,
     noContent: 'No content in response',
     parsingFailed: 'Failed to parse response data',
   },
@@ -67,7 +69,7 @@ export const MESSAGES = {
     messageTooLong: 'Message too long',
     invalidRole: 'Role must be user or assistant',
     invalidModel: 'Invalid model',
-    invalidTemperature: 'Temperature must be between 0 and 2',
+
     required: 'This field is required',
     invalidUrl: 'Must be a valid URL',
     positiveNumber: 'Must be a positive number',

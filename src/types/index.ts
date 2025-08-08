@@ -28,7 +28,6 @@ export interface ChatResponse {
   metadata?: {
     processingTime?: number;
     tokensUsed?: number;
-    toolsUsed?: string[];
   };
 }
 
@@ -148,39 +147,31 @@ export interface ProjectInfoData {
   error?: string;
 }
 
-export type MCPServiceData = SpotifyTrackData | GitHubActivityData | BlogPostData | ProjectInfoData;
+export type MCPServiceData =
+  | SpotifyTrackData
+  | GitHubActivityData
+  | BlogPostData
+  | ProjectInfoData;
 
 export interface MCPDirectResponse {
   type: 'mcp_direct';
   service: string;
   data: MCPServiceData;
   formatted: string;
+  mcp_tool: string;
   metadata: {
     timestamp: string;
-    tools: string[];
     responseTime: number;
   };
 }
 
 export interface MCPResponseFormatter {
   service: string;
-  tools: string[];
-  format: (results: MCPToolResult[]) => { data: MCPServiceData; formatted: string };
-}
-
-// Error Types
-export interface APIError {
-  code: string;
-  message: string;
-  details?: Record<string, unknown>;
-  timestamp: Date;
-}
-
-export interface AppError extends Error {
-  statusCode?: number;
-  isOperational?: boolean;
-  code?: string;
-  details?: Record<string, unknown>;
+  tool: string;
+  format: (results: MCPToolResult[]) => {
+    data: MCPServiceData;
+    formatted: string;
+  };
 }
 
 // Health Check Types
@@ -208,4 +199,5 @@ export interface EnvironmentConfig {
 }
 
 // MCP Tool Response Types
-export type ToolResponse = import('@modelcontextprotocol/sdk/types.js').CallToolResult;
+export type ToolResponse =
+  import('@modelcontextprotocol/sdk/types.js').CallToolResult;

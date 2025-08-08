@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import dotenv from 'dotenv';
+import { z } from 'zod';
 
 // Load .env file
 dotenv.config();
@@ -14,7 +14,9 @@ const envSchema = z.object({
 
   // Optional with simple defaults
   PORT: z.string().default('3000').transform(Number),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
   CHROMA_HOST: z.string().default('localhost'),
   CHROMA_PORT: z.string().default('8000').transform(Number),
   MCP_SERVER_URL: z.string().default('http://localhost:3001'),

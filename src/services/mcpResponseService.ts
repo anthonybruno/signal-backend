@@ -1,8 +1,7 @@
-import { mcpClient } from '@/services/mcpClientService';
-import { logger } from '@/utils/logger';
-import { MESSAGES } from '@/utils/messages';
 import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
-import {
+
+import { mcpClient } from '@/services/mcpClientService';
+import type {
   SpotifyTrackData,
   GitHubActivityData,
   BlogPostData,
@@ -12,6 +11,8 @@ import {
   MCPToolCall,
   MCPToolResult,
 } from '@/types';
+import { logger } from '@/utils/logger';
+import { MESSAGES } from '@/utils/messages';
 
 export class MCPResponseService {
   private formatters: Map<string, MCPResponseFormatter> = new Map();
@@ -25,7 +26,9 @@ export class MCPResponseService {
    */
   registerFormatter(formatter: MCPResponseFormatter): void {
     this.formatters.set(formatter.service, formatter);
-    logger.info(`Registered Backend formatter for service: ${formatter.service}`);
+    logger.info(
+      `Registered Backend formatter for service: ${formatter.service}`,
+    );
   }
 
   /**
@@ -79,9 +82,9 @@ export class MCPResponseService {
         service,
         data,
         formatted,
+        mcp_tool: tools[0].name,
         metadata: {
           timestamp: new Date().toISOString(),
-          tools: tools.map((t) => t.name),
           responseTime,
         },
       };
@@ -104,7 +107,9 @@ export class MCPResponseService {
 
     // Use the first tool's service, or default to 'unknown'
     const firstToolName = tools[0]?.name;
-    return firstToolName ? toolToService[firstToolName] || 'unknown' : 'unknown';
+    return firstToolName
+      ? toolToService[firstToolName] || 'unknown'
+      : 'unknown';
   }
 
   /**
@@ -114,11 +119,11 @@ export class MCPResponseService {
     // Spotify formatter
     this.registerFormatter({
       service: 'spotify',
-      tools: ['get_current_spotify_track'],
+      tool: 'get_current_spotify_track',
       format: (results): { data: SpotifyTrackData; formatted: string } => {
-        const spotifyResult = results[0];
+        const [spotifyResult] = results;
 
-        if (!spotifyResult || spotifyResult.isError || !spotifyResult.content.length) {
+        if (spotifyResult.isError || !spotifyResult.content.length) {
           logger.warn('Spotify formatter: No valid result or error occurred');
           return {
             data: { error: MESSAGES.general.noData },
@@ -128,14 +133,7 @@ export class MCPResponseService {
 
         try {
           // Parse the Spotify response (assuming it's JSON)
-          const firstContent = spotifyResult.content[0];
-          if (!firstContent) {
-            logger.warn('Spotify formatter: No content in result');
-            return {
-              data: { error: MESSAGES.mcp.noContent },
-              formatted: MESSAGES.spotify.noTrack,
-            };
-          }
+          const [firstContent] = spotifyResult.content;
 
           logger.info('Spotify formatter: Parsing JSON response', {
             textLength: firstContent.text.length,
@@ -146,7 +144,9 @@ export class MCPResponseService {
 
           // Check if this is an error response from the MCP tool
           if (trackData.error) {
-            logger.warn('Spotify formatter: MCP tool returned error', { error: trackData.error });
+            logger.warn('Spotify formatter: MCP tool returned error', {
+              error: trackData.error,
+            });
             return {
               data: { error: trackData.error },
               formatted: trackData.error,
@@ -184,11 +184,11 @@ export class MCPResponseService {
     // GitHub formatter
     this.registerFormatter({
       service: 'github',
-      tools: ['get_github_activity'],
+      tool: 'get_github_activity',
       format: (results): { data: GitHubActivityData; formatted: string } => {
-        const githubResult = results[0];
+        const [githubResult] = results;
 
-        if (!githubResult || githubResult.isError || !githubResult.content.length) {
+        if (githubResult.isError || !githubResult.content.length) {
           logger.warn('GitHub formatter: No valid result or error occurred');
           return {
             data: { error: MESSAGES.general.noData },
@@ -198,14 +198,7 @@ export class MCPResponseService {
 
         try {
           // Parse the GitHub response (assuming it's JSON)
-          const firstContent = githubResult.content[0];
-          if (!firstContent) {
-            logger.warn('GitHub formatter: No content in result');
-            return {
-              data: { error: MESSAGES.mcp.noContent },
-              formatted: MESSAGES.github.noActivity,
-            };
-          }
+          const [firstContent] = githubResult.content;
 
           logger.info('GitHub formatter: Parsing JSON response', {
             textLength: firstContent.text.length,
@@ -216,7 +209,9 @@ export class MCPResponseService {
 
           // Check if this is an error response from the MCP tool
           if (githubData.error) {
-            logger.warn('GitHub formatter: MCP tool returned error', { error: githubData.error });
+            logger.warn('GitHub formatter: MCP tool returned error', {
+              error: githubData.error,
+            });
             return {
               data: { error: githubData.error },
               formatted: githubData.error,
@@ -252,11 +247,11 @@ export class MCPResponseService {
     // Blog formatter
     this.registerFormatter({
       service: 'blog',
-      tools: ['get_latest_blog_post'],
+      tool: 'get_latest_blog_post',
       format: (results): { data: BlogPostData; formatted: string } => {
-        const blogResult = results[0];
+        const [blogResult] = results;
 
-        if (!blogResult || blogResult.isError || !blogResult.content.length) {
+        if (blogResult.isError || !blogResult.content.length) {
           logger.warn('Blog formatter: No valid result or error occurred');
           return {
             data: { error: MESSAGES.general.noData },
@@ -266,14 +261,7 @@ export class MCPResponseService {
 
         try {
           // Parse the blog response (assuming it's JSON)
-          const firstContent = blogResult.content[0];
-          if (!firstContent) {
-            logger.warn('Blog formatter: No content in result');
-            return {
-              data: { error: MESSAGES.mcp.noContent },
-              formatted: MESSAGES.blog.error,
-            };
-          }
+          const [firstContent] = blogResult.content;
 
           logger.info('Blog formatter: Parsing JSON response', {
             textLength: firstContent.text.length,
@@ -284,7 +272,9 @@ export class MCPResponseService {
 
           // Check if this is an error response from the MCP tool
           if (blogData.error) {
-            logger.warn('Blog formatter: MCP tool returned error', { error: blogData.error });
+            logger.warn('Blog formatter: MCP tool returned error', {
+              error: blogData.error,
+            });
             return {
               data: { error: blogData.error },
               formatted: blogData.error,
@@ -320,11 +310,11 @@ export class MCPResponseService {
     // Project info formatter
     this.registerFormatter({
       service: 'project',
-      tools: ['get_project_info'],
+      tool: 'get_project_info',
       format: (results): { data: ProjectInfoData; formatted: string } => {
-        const projectResult = results[0];
+        const [projectResult] = results;
 
-        if (!projectResult || projectResult.isError || !projectResult.content.length) {
+        if (projectResult.isError || !projectResult.content.length) {
           return {
             data: { error: MESSAGES.general.noData },
             formatted: 'No project info available.',
@@ -332,13 +322,7 @@ export class MCPResponseService {
         }
 
         try {
-          const firstContent = projectResult.content[0];
-          if (!firstContent) {
-            return {
-              data: { error: MESSAGES.mcp.noContent },
-              formatted: 'No project info available.',
-            };
-          }
+          const [firstContent] = projectResult.content;
 
           const projectData = JSON.parse(firstContent.text);
 
@@ -463,7 +447,9 @@ export class MCPResponseService {
     // Tech stack section
     let techStackSection = '';
     if (Array.isArray(data.technologies) && data.technologies.length > 0) {
-      const techStackList = data.technologies.map((item: string) => `- ${item}`).join('\n');
+      const techStackList = data.technologies
+        .map((item: string) => `- ${item}`)
+        .join('\n');
       techStackSection = `# Tech Stack\n${techStackList}\n`;
     }
 
@@ -473,7 +459,9 @@ export class MCPResponseService {
       : '';
 
     // Combine all sections, filtering out any empty ones
-    return [headline, description, techStackSection, repoSection].filter(Boolean).join('\n');
+    return [headline, description, techStackSection, repoSection]
+      .filter(Boolean)
+      .join('\n');
   }
 }
 

@@ -1,15 +1,16 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import axios, { type AxiosInstance } from 'axios';
+
+import type { MCPToolCall, MCPToolResult } from '@/types';
 import { logger } from '@/utils/logger';
-import { MCPToolCall, MCPToolResult } from '@/types';
-import axios, { AxiosInstance } from 'axios';
 
 class MCPClientService {
   private client: Client | null = null;
   private httpClient: AxiosInstance | null = null;
   private isConnected = false;
   private transportType: 'stdio' | 'http' = 'stdio';
-  private mcpServerUrl: string = '';
+  private mcpServerUrl = '';
 
   async connect(): Promise<void> {
     if (this.isConnected) {
@@ -17,8 +18,9 @@ class MCPClientService {
     }
 
     // Determine transport type from environment
-    this.transportType = (process.env.MCP_TRANSPORT as 'stdio' | 'http') ?? 'stdio';
-    this.mcpServerUrl = process.env.MCP_SERVER_URL ?? 'http://localhost:3001';
+    this.transportType =
+      process.env.MCP_TRANSPORT === 'http' ? 'http' : 'stdio';
+    this.mcpServerUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001';
 
     try {
       if (this.transportType === 'http') {
@@ -52,7 +54,9 @@ class MCPClientService {
     // Test connection with health check
     try {
       const healthResponse = await this.httpClient.get('/health');
-      logger.info('MCP HTTP server health check passed', { status: healthResponse.status });
+      logger.info('MCP HTTP server health check passed', {
+        status: healthResponse.status,
+      });
       this.isConnected = true;
       logger.info('Connected to MCP server via HTTP successfully');
     } catch (error) {
@@ -110,7 +114,7 @@ class MCPClientService {
         return response.data.result?.tools ?? [];
       } else if (this.client) {
         const response = await this.client.listTools();
-        return response.tools ?? [];
+        return response.tools;
       } else {
         throw new Error('No client available');
       }

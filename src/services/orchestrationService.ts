@@ -1,20 +1,18 @@
-import { EmbeddingService } from './embeddingService';
-import { LLMService } from './llmService';
 import { mcpClient } from '@/services/mcpClientService';
-import { logger } from '@/utils/logger';
-import { getEnv } from '@/config/env';
 import { mcpResponseService } from '@/services/mcpResponseService';
-import {
+import type {
   ChatRequest as SharedChatRequest,
   MCPToolCall,
   ChatMessage,
   MCPDirectResponse,
 } from '@/types';
+import { logger } from '@/utils/logger';
+
+import { EmbeddingService } from './embeddingService';
+import { LLMService } from './llmService';
 
 export interface ChatRequest extends SharedChatRequest {
   conversationHistory?: ChatMessage[];
-  model?: string;
-  temperature?: number;
 }
 
 export interface ChatWithRAGResponse {
@@ -35,7 +33,7 @@ export type ChatResponse = ChatWithRAGResponse | MCPDirectResponse;
 
 interface SmartRoutingDecision {
   useRAG: boolean;
-  mcpTools: string[];
+  mcpTool: string;
   directResponse: boolean;
   confidence: number;
   reasoning: string;
@@ -102,37 +100,34 @@ Routing Rules:
 Respond ONLY with valid JSON:
 {
   "useRAG": true/false,
-  "mcpTools": ["tool_name"] or [],
+  "mcpTool": "tool_name" or "",
   "directResponse": true/false,
   "confidence": 0.95,
   "reasoning": "brief explanation"
 }
 
 Examples:
-- "What's your React experience?" -> {"useRAG": true, "mcpTools": [], "directResponse": false, "confidence": 0.95, "reasoning": "asking about technical skills from skills.md"}
-- "What are your values?" -> {"useRAG": true, "mcpTools": [], "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal values from values.md"}
-- "What projects have you worked on?" -> {"useRAG": true, "mcpTools": [], "directResponse": false, "confidence": 0.95, "reasoning": "asking about past projects from projects.md"}
-- "What are your interests?" -> {"useRAG": true, "mcpTools": [], "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal interests from interests.md"}
-- "What are you listening to?" -> {"useRAG": false, "mcpTools": ["get_current_spotify_track"], "directResponse": true, "confidence": 0.98, "reasoning": "direct request for current music"}
-- "How do I learn React?" -> {"useRAG": false, "mcpTools": [], "directResponse": false, "confidence": 0.92, "reasoning": "general advice, not about Anthony"}
-- "Show me your GitHub activity" -> {"useRAG": false, "mcpTools": ["get_github_activity"], "directResponse": true, "confidence": 0.98, "reasoning": "direct request for GitHub activity"}
-- "What have you been working on lately?" -> {"useRAG": false, "mcpTools": ["get_github_activity"], "directResponse": false, "confidence": 0.95, "reasoning": "asking about recent work activity"}
-- "Show me your latest blog post" -> {"useRAG": false, "mcpTools": ["get_latest_blog_post"], "directResponse": true, "confidence": 0.98, "reasoning": "direct request for latest blog post"}
-- "What are your most recent articles?" -> {"useRAG": false, "mcpTools": ["get_latest_blog_post"], "directResponse": true, "confidence": 0.98, "reasoning": "direct request for recent blog articles"}
-- "Tell me about your blog" -> {"useRAG": true, "mcpTools": [], "directResponse": false, "confidence": 0.95, "reasoning": "asking about the blog in general, not for live data"}
-- "Tell me about this project" -> {"useRAG": false, "mcpTools": ["get_project_info"], "directResponse": true, "confidence": 0.98, "reasoning": "direct request for project info"}
-- "What do you believe in?" -> {"useRAG": true, "mcpTools": [], "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal values from values.md"}
+- "What's your React experience?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about technical skills from skills.md"}
+- "What are your values?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal values from values.md"}
+- "What projects have you worked on?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about past projects from projects.md"}
+- "What are your interests?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal interests from interests.md"}
+- "What are you listening to?" -> {"useRAG": false, "mcpTool": "get_current_spotify_track", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for current music"}
+- "How do I learn React?" -> {"useRAG": false, "mcpTool": "", "directResponse": false, "confidence": 0.92, "reasoning": "general advice, not about Anthony"}
+- "Show me your GitHub activity" -> {"useRAG": false, "mcpTool": "get_github_activity", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for GitHub activity"}
+- "What have you been working on lately?" -> {"useRAG": false, "mcpTool": "get_github_activity", "directResponse": false, "confidence": 0.95, "reasoning": "asking about recent work activity"}
+- "Show me your latest blog post" -> {"useRAG": false, "mcpTool": "get_latest_blog_post", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for latest blog post"}
+- "What are your most recent articles?" -> {"useRAG": false, "mcpTool": "get_latest_blog_post", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for recent blog articles"}
+- "Tell me about your blog" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about the blog in general, not for live data"}
+- "Tell me about this project" -> {"useRAG": false, "mcpTool": "get_project_info", "directResponse": true, "confidence": 0.98, "reasoning": "direct request for project info"}
+- "What do you believe in?" -> {"useRAG": true, "mcpTool": "", "directResponse": false, "confidence": 0.95, "reasoning": "asking about personal values from values.md"}
 `;
 
     try {
       logger.info('Using LLM for smart routing decision');
 
-      const env = getEnv();
       const response = await this.llmService.generateResponse(
         [{ role: 'user', content: routingPrompt }],
         {
-          model: env.RAG_ROUTING_MODEL, // Fast and cheap for routing
-          temperature: 0.1, // Low temperature for consistent classification
           maxTokens: 200,
         },
       );
@@ -149,21 +144,27 @@ Examples:
 
       const decision: SmartRoutingDecision = JSON.parse(jsonText);
 
-      logger.info(`RAG routing decision: ${decision.useRAG} (confidence: ${decision.confidence})`, {
-        reasoning: decision.reasoning,
-        query: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
-      });
+      logger.info(
+        `RAG routing decision: ${decision.useRAG} (confidence: ${decision.confidence})`,
+        {
+          reasoning: decision.reasoning,
+          query:
+            message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+        },
+      );
 
       return decision;
     } catch (error) {
       // Simple error logging without circular references
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      logger.error(`RAG routing failed: ${errorMsg}. Defaulting to safe fallback.`);
+      logger.error(
+        `RAG routing failed: ${errorMsg}. Defaulting to safe fallback.`,
+      );
 
       // Fallback: use RAG for safety, but with low confidence
       return {
         useRAG: true,
-        mcpTools: [],
+        mcpTool: '',
         directResponse: false,
         confidence: 0.5,
         reasoning: 'Routing failed, defaulting to RAG for safety',
@@ -218,15 +219,15 @@ Examples:
     // Use smart routing to determine approach
     const routing = await this.smartRouting(message, conversationHistory);
 
-    if (routing.directResponse && routing.mcpTools.length > 0) {
+    if (routing.directResponse && routing.mcpTool) {
       // Direct MCP tool response
-      return await this.executeDirectMCPFlow(request, routing.mcpTools);
+      return await this.executeDirectMCPFlow(request, [routing.mcpTool]);
     } else if (routing.useRAG) {
       // RAG-based response
       return await this.executeRAGFlow(request);
-    } else if (routing.mcpTools.length > 0) {
+    } else if (routing.mcpTool) {
       // MCP tools with LLM processing
-      return await this.executeMCPFlow(request, routing.mcpTools);
+      return await this.executeMCPFlow(request, [routing.mcpTool]);
     } else {
       // Direct LLM response
       return await this.executeDirectLLMFlow(request);
@@ -239,22 +240,32 @@ Examples:
   async generateStreamingResponse(
     request: ChatRequest,
     onChunk: (chunk: string) => void,
-    onToolsStarting?: (tools: string[]) => void,
+    onToolsStarting?: (tool: string) => void,
   ): Promise<ChatResponse> {
     const { message, conversationHistory = [] } = request;
 
     // Use smart routing to determine approach
     const routing = await this.smartRouting(message, conversationHistory);
 
-    if (routing.directResponse && routing.mcpTools.length > 0) {
+    if (routing.directResponse && routing.mcpTool) {
       // Direct MCP tool response WITH streaming
-      return await this.executeDirectMCPFlow(request, routing.mcpTools, onChunk, onToolsStarting);
+      return await this.executeDirectMCPFlow(
+        request,
+        [routing.mcpTool],
+        onChunk,
+        onToolsStarting,
+      );
     } else if (routing.useRAG) {
       // RAG-based response WITH streaming
       return await this.executeRAGFlow(request, onChunk);
-    } else if (routing.mcpTools.length > 0) {
+    } else if (routing.mcpTool) {
       // MCP tools with LLM processing and streaming
-      return await this.executeMCPFlow(request, routing.mcpTools, onChunk, onToolsStarting);
+      return await this.executeMCPFlow(
+        request,
+        [routing.mcpTool],
+        onChunk,
+        onToolsStarting,
+      );
     } else {
       // Direct LLM response WITH streaming
       return await this.executeDirectLLMFlow(request, onChunk);
@@ -272,11 +283,18 @@ Examples:
 
     try {
       // Search for relevant context
-      const searchResults = await this.embeddingService.searchSimilar(message, 3);
-      const retrievedChunks = searchResults.results.map((result) => result.content);
+      const searchResults = await this.embeddingService.searchSimilar(
+        message,
+        3,
+      );
+      const retrievedChunks = searchResults.results.map(
+        (result) => result.content,
+      );
 
       if (retrievedChunks.length === 0) {
-        logger.warn('No RAG context found, falling back to direct LLM response');
+        logger.warn(
+          'No RAG context found, falling back to direct LLM response',
+        );
         return await this.executeDirectLLMFlow(request, onChunk);
       }
 
@@ -298,20 +316,16 @@ Examples:
       // Generate response - streaming or non-streaming based on callback presence
       const response = onChunk
         ? await this.llmService.generateStreamingResponse(messages, {
-            model: request.model ?? 'gpt-4o-mini',
-            temperature: request.temperature ?? 0.7,
             maxTokens: 1000,
             onChunk,
           })
         : await this.llmService.generateResponse(messages, {
-            model: request.model ?? 'gpt-4o-mini',
-            temperature: request.temperature ?? 0.7,
             maxTokens: 1000,
           });
 
       return {
         response: response.message,
-        model: response.model ?? 'gpt-4o-mini',
+        model: response.model || this.llmService.getDefaultModel(),
         contextUsed: true,
         retrievedChunks,
         usage: response.usage,
@@ -330,13 +344,13 @@ Examples:
     request: ChatRequest,
     toolNames: string[],
     onChunk?: (chunk: string) => void,
-    onToolsStarting?: (tools: string[]) => void,
+    onToolsStarting?: (tool: string) => void,
   ): Promise<ChatResponse> {
     const { message, conversationHistory = [] } = request;
 
     try {
-      // Notify that tools are starting
-      onToolsStarting?.(toolNames);
+      // Notify that tools are starting (use first tool since we only support one at a time)
+      onToolsStarting?.(toolNames[0]);
 
       // Create tool calls
       const toolCalls: MCPToolCall[] = toolNames.map((name) => ({
@@ -365,20 +379,16 @@ Examples:
       // Generate response - streaming or non-streaming based on callback presence
       const response = onChunk
         ? await this.llmService.generateStreamingResponse(messages, {
-            model: request.model ?? 'gpt-4o-mini',
-            temperature: request.temperature ?? 0.7,
             maxTokens: 1000,
             onChunk,
           })
         : await this.llmService.generateResponse(messages, {
-            model: request.model ?? 'gpt-4o-mini',
-            temperature: request.temperature ?? 0.7,
             maxTokens: 1000,
           });
 
       return {
         response: response.message,
-        model: response.model ?? 'gpt-4o-mini',
+        model: response.model || this.llmService.getDefaultModel(),
         contextUsed: true,
         retrievedChunks: toolResults,
         usage: response.usage,
@@ -397,12 +407,12 @@ Examples:
     request: ChatRequest,
     toolNames: string[],
     onChunk?: (chunk: string) => void,
-    onToolsStarting?: (tools: string[]) => void,
+    onToolsStarting?: (tool: string) => void,
   ): Promise<MCPDirectResponse> {
     try {
       // Notify about tools starting (only for streaming requests)
       if (onChunk && onToolsStarting) {
-        onToolsStarting(toolNames);
+        onToolsStarting(toolNames[0]);
       }
 
       // Create tool calls
@@ -416,7 +426,7 @@ Examples:
 
       // Stream the formatted response if needed
       if (onChunk) {
-        const formatted = response.formatted;
+        const { formatted } = response;
         const words = formatted.split(/(\s+)/);
         for (const word of words) {
           if (word) {
@@ -454,20 +464,16 @@ Examples:
 
     const response = onChunk
       ? await this.llmService.generateStreamingResponse(messages, {
-          model: request.model ?? 'gpt-4o-mini',
-          temperature: request.temperature ?? 0.7,
           maxTokens: 1000,
           onChunk,
         })
       : await this.llmService.generateResponse(messages, {
-          model: request.model ?? 'gpt-4o-mini',
-          temperature: request.temperature ?? 0.7,
           maxTokens: 1000,
         });
 
     return {
       response: response.message,
-      model: response.model ?? 'gpt-4o-mini',
+      model: response.model || this.llmService.getDefaultModel(),
       contextUsed: false,
       retrievedChunks: undefined,
       usage: response.usage,
