@@ -5,6 +5,10 @@ import type { ChromaClient } from 'chromadb';
 
 let chromaClient: ChromaClient | null = null;
 
+/**
+ * Initializes and returns a ChromaDB client instance.
+ * Creates a singleton connection that's reused across the application.
+ */
 export const initializeChromaDB = async (): Promise<ChromaClient> => {
   if (chromaClient) {
     return chromaClient;
@@ -13,43 +17,37 @@ export const initializeChromaDB = async (): Promise<ChromaClient> => {
   const env = getEnv();
 
   try {
-    // Initialize ChromaDB client (same as RAG service)
     const { ChromaClient } = await import('chromadb');
 
-    // Determine protocol based on port
     const protocol = env.CHROMA_PORT === 443 ? 'https' : 'http';
-    const path = `${protocol}://${env.CHROMA_HOST}${env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : ''}`;
+    const port = env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : '';
+    const connectionUrl = `${protocol}://${env.CHROMA_HOST}${port}`;
 
-    logger.info(`Connecting to ChromaDB at: ${path}`);
+    logger.info(`Connecting to ChromaDB at: ${connectionUrl}`);
 
-    chromaClient = new ChromaClient({
-      path,
-    });
+    chromaClient = new ChromaClient({ path: connectionUrl });
 
-    // Test connection
     await chromaClient.heartbeat();
     logger.info('ChromaDB connection established');
 
     return chromaClient;
   } catch (error) {
     logger.error('Failed to connect to ChromaDB:', error);
-    throw new Error(
-      'ChromaDB connection failed. Make sure ChromaDB is running.',
-    );
+    throw new Error('ChromaDB connection failed. Ensure ChromaDB is running.');
   }
 };
 
-// Simple function to get existing collection for querying only
+/**
+ * Retrieves a ChromaDB collection for querying operations.
+ * @param collectionName - Name of the collection to retrieve
+ * @returns Promise resolving to the collection instance
+ */
 export const getCollectionForQuery = async (collectionName: string) => {
   const client = await initializeChromaDB();
 
   try {
-    // Get existing collection (same as RAG service)
-    const collection = await client.getCollection({
-      name: collectionName,
-    });
-
-    logger.info(`Using collection for querying: ${collectionName}`);
+    const collection = await client.getCollection({ name: collectionName });
+    logger.info(`Retrieved collection: ${collectionName}`);
     return collection;
   } catch (error) {
     logger.error(`Collection ${collectionName} not found:`, error);

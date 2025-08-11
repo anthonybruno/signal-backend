@@ -11,7 +11,7 @@ import { logger } from '@/utils/logger';
 dotenv.config();
 
 // Add immediate console logging for debugging
-console.log('Starting TonyBot Backend...');
+console.log('Starting Signal Backend...');
 console.log(`Current working directory: ${process.cwd()}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(`PORT: ${process.env.PORT ?? 3000}`);
@@ -34,11 +34,10 @@ app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '900000'), // 15 minutes
-  max: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] ?? '100'),
+  windowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '60000'), // 1 minute (more appropriate for chat)
+  max: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] ?? '20'), // 20 requests per minute (more restrictive for chat)
   message: {
-    error: 'Too many requests from this IP, please try again later.',
-    retryAfter: '15 minutes',
+    error: 'Rate limit exceeded. Please wait before sending another message.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -99,7 +98,7 @@ const initializeServices = async () => {
 
 const server = app.listen(PORT, () => {
   console.log(
-    `🚀 TonyBot Backend running on port ${PORT} in ${process.env['NODE_ENV'] ?? 'development'} mode`,
+    `🚀 Signal Backend running on port ${PORT} in ${process.env['NODE_ENV'] ?? 'development'} mode`,
   );
   logger.info(`Backend started on port ${PORT}`);
 });

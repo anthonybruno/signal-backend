@@ -1,10 +1,10 @@
 import axios, { type AxiosInstance } from 'axios';
 
 import { getEnv } from '@/config/env';
-import { formatSystemPrompt } from '@/prompts';
-import type { ChatMessage, TokenUsage, ChatResponse } from '@/types';
+import type { ChatMessage, ChatResponse, ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
+import { formatSystemPrompt, DIRECT_LLM_SYSTEM_PROMPT } from '@/utils/prompts';
 
 export interface IntentDecision {
   useRAG: boolean;
@@ -13,15 +13,15 @@ export interface IntentDecision {
 }
 
 export class LLMService {
-  private openRouterClient: AxiosInstance;
-  private defaultModel: string;
-  private intentDispatcherModel: string;
+  private readonly openRouterClient: AxiosInstance;
+  private readonly defaultModel: string;
+  private readonly intentDispatcherModel: string;
 
   constructor() {
     const env = getEnv();
-
     this.defaultModel = env.DEFAULT_MODEL;
     this.intentDispatcherModel = env.INTENT_DISPATCHER_MODEL;
+
     this.openRouterClient = axios.create({
       baseURL: 'https://openrouter.ai/api/v1',
       headers: {
@@ -29,14 +29,19 @@ export class LLMService {
         'Content-Type': 'application/json',
         'X-Title': 'Signal',
       },
-      timeout: 30000, // 30 second timeout
+      timeout: 30000,
     });
   }
 
-  /**
-   * Analyze user intent and dispatch to appropriate service
-   */
-  async intentDispatcher(prompt: string): Promise<IntentDecision> {
+  getDefaultModel(): string {
+    return this.defaultModel;
+  }
+
+  getSystemPrompt(contextChunks: string[] = []): string {
+    return formatSystemPrompt(contextChunks);
+  }
+
+  async analyzeIntent(prompt: string): Promise<IntentDecision> {
     try {
       const response = await this.openRouterClient.post('/chat/completions', {
         model: this.intentDispatcherModel,
@@ -46,70 +51,24 @@ export class LLMService {
       });
 
       const { choices } = response.data;
-
-      if (!choices || choices.length === 0) {
+      if (!choices?.[0]?.message?.content) {
         throw new Error('No routing decision received');
       }
 
-      const assistantMessage = choices[0].message.content;
-
-      // Parse the JSON response (handle markdown code blocks)
-      let jsonText = assistantMessage.trim();
-
-      // Remove markdown code blocks if present
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
-
-      const decision: IntentDecision = JSON.parse(jsonText);
-
-      return decision;
+      const content = choices[0].message.content.trim();
+      const jsonText = this.extractJsonFromResponse(content);
+      return JSON.parse(jsonText);
     } catch (error) {
       logger.error('Intent analysis failed:', error);
-
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const errorData = error.response?.data;
-
-        if (status === 401) {
-          throw new Error('Invalid API key for intent analysis');
-        } else if (status === 429) {
-          throw new Error('Rate limit exceeded for intent analysis');
-        } else if (status === 400) {
-          throw new Error(
-            `Bad request for intent analysis: ${errorData?.error?.message ?? 'Bad request'}`,
-          );
-        }
-      }
-
-      throw new Error('Failed to analyze user intent');
+      throw this.createIntentError(error);
     }
   }
 
-  /**
-   * Get the default model being used
-   */
-  getDefaultModel(): string {
-    return this.defaultModel;
-  }
-
-  /**
-   * Get the system prompt that defines the assistant's personality and behavior
-   */
-  getSystemPrompt(contextChunks: string[] = []): string {
-    return formatSystemPrompt(contextChunks);
-  }
-
-  /**
-   * Generate a streaming chat completion
-   */
-  async generateStreamingResponse(
+  async streamResponse(
     messages: ChatMessage[],
     options?: {
-      maxTokens: number | undefined;
-      onChunk: ((chunk: string) => void) | undefined;
+      onChunk?: (chunk: string) => void;
+      maxTokens?: number;
     },
   ): Promise<ChatResponse> {
     try {
@@ -119,55 +78,38 @@ export class LLMService {
           model: this.defaultModel,
           messages,
           temperature: 0.7,
-          max_tokens: options?.maxTokens ?? 4000,
-          stream: true, // Enable streaming
+          max_tokens: options?.maxTokens || 4000,
+          stream: true,
         },
-        {
-          responseType: 'stream',
-        },
+        { responseType: 'stream' },
       );
 
       let fullContent = '';
-      let usage: TokenUsage | undefined = undefined;
-      const model = this.defaultModel;
-
       return new Promise((resolve, reject) => {
         response.data.on('data', (chunk: Buffer) => {
           const lines = chunk.toString().split('\n');
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
+            if (!line.startsWith('data: ')) continue;
 
-              if (data === '[DONE]') {
-                // Stream finished
-                resolve({
-                  message: fullContent,
-                  model,
-                  usage,
-                });
-                return;
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              resolve({
+                message: fullContent,
+              });
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+
+              if (content) {
+                fullContent += content;
+                options?.onChunk?.(content);
               }
-
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-
-                if (content) {
-                  fullContent += content;
-                  if (options?.onChunk) {
-                    options.onChunk(content);
-                  }
-                }
-
-                // Capture usage info if available
-                if (parsed.usage) {
-                  ({ usage } = parsed);
-                }
-              } catch {
-                // Skip invalid JSON lines
-                continue;
-              }
+            } catch {
+              // Skip invalid JSON lines
             }
           }
         });
@@ -178,33 +120,57 @@ export class LLMService {
         });
 
         response.data.on('end', () => {
-          // Fallback resolution if [DONE] wasn't received
-          resolve({
-            message: fullContent,
-            model,
-            usage,
-          });
+          resolve({ message: fullContent });
         });
       });
     } catch (error) {
       logger.error('Streaming LLM generation failed:', error);
-
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const errorData = error.response?.data;
-
-        if (status === 401) {
-          throw new Error(MESSAGES.llm.invalidApiKey);
-        } else if (status === 429) {
-          throw new Error(MESSAGES.llm.rateLimit);
-        } else if (status === 400) {
-          throw new Error(
-            `${MESSAGES.llm.badRequest}: ${errorData?.error?.message ?? 'Bad request'}`,
-          );
-        }
-      }
-
-      throw new Error(MESSAGES.llm.streamingFailedGeneral);
+      throw this.createStreamingError(error);
     }
+  }
+
+  async executeDirectLLMFlow(
+    request: ChatRequest,
+    onChunk: (chunk: string) => void,
+  ): Promise<void> {
+    const { message, history = [] } = request;
+
+    const messages: ChatMessage[] = [
+      { role: 'system', content: DIRECT_LLM_SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: message },
+    ];
+
+    await this.streamResponse(messages, {
+      onChunk,
+    });
+  }
+
+  private extractJsonFromResponse(content: string): string {
+    if (content.startsWith('```json')) {
+      return content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    }
+    if (content.startsWith('```')) {
+      return content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    return content;
+  }
+
+  private createIntentError(error: unknown): Error {
+    if (axios.isAxiosError(error)) {
+      return new Error(
+        `Intent analysis failed: ${error.response?.data?.error?.message ?? error.message}`,
+      );
+    }
+    return new Error('Failed to analyze user intent');
+  }
+
+  private createStreamingError(error: unknown): Error {
+    if (axios.isAxiosError(error)) {
+      return new Error(
+        `Streaming failed: ${error.response?.data?.error?.message ?? error.message}`,
+      );
+    }
+    return new Error(MESSAGES.llm.streamingFailedGeneral);
   }
 }
