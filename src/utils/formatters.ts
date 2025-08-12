@@ -112,33 +112,28 @@ function formatBlogResponse(data: Record<string, unknown>): string {
     return data.error as string;
   }
 
-  if (!data.posts || !Array.isArray(data.posts) || data.posts.length === 0) {
-    return MESSAGES.blog.noPosts;
-  }
+  // Check if we have a single blog post
+  if (data.title && data.link) {
+    const title = data.title as string;
+    const link = data.link as string;
+    const publishedAt = data.publishedAt as string;
 
-  const posts = data.posts as Array<Record<string, unknown>>;
-  const [latestPost] = posts;
-
-  if (!latestPost.title || !latestPost.url) {
-    return MESSAGES.blog.error;
-  }
-
-  const title = latestPost.title as string;
-  const url = latestPost.url as string;
-  const publishedAt = latestPost.publishedAt as string;
-
-  let timeAgo = '';
-  if (publishedAt) {
-    try {
-      timeAgo = formatDistanceToNow(new Date(publishedAt), {
-        addSuffix: true,
-      });
-    } catch {
-      timeAgo = '';
+    let timeAgo = '';
+    if (publishedAt) {
+      try {
+        timeAgo = formatDistanceToNow(new Date(publishedAt), {
+          addSuffix: true,
+        });
+      } catch {
+        timeAgo = '';
+      }
     }
+
+    return `My latest blog post **${timeAgo}** ✍️ was: [${title}](${link})`;
   }
 
-  return `My latest blog post **${timeAgo}**: [${title}](${url})`;
+  // No blog posts available
+  return MESSAGES.blog.noPosts;
 }
 
 /**
@@ -168,21 +163,16 @@ function formatProjectResponse(data: Record<string, unknown>): string {
   const name = data.name as string;
   const description = data.description as string;
   const url = data.url as string;
-  const stars = data.stars as number;
-  const language = data.language as string;
+  const technologies = data.technologies as string[] | undefined;
 
-  let formatted = `**${name}**\n\n${description}`;
+  let formatted = `# ${name}\n\n${description}`;
+
+  if (technologies && Array.isArray(technologies) && technologies.length > 0) {
+    formatted += `\n\n## Technologies\n\n${technologies.map((tech) => `- ${tech}`).join('\n')}`;
+  }
 
   if (url) {
     formatted += `\n\n[View on GitHub](${url})`;
-  }
-
-  if (stars) {
-    formatted += `\n⭐ ${stars} stars`;
-  }
-
-  if (language) {
-    formatted += `\n💻 ${language}`;
   }
 
   return formatted;

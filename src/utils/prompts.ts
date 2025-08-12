@@ -116,7 +116,7 @@ Current query: "{query}"
 
 **Use MCP Tools for:**
 - Current/live data requests
-- "What are you listening to?", "Show me your GitHub", "What's your latest blog post?"
+- "What are you listening to?", "Show me your GitHub", "What's your latest blog post?", "Tell me about this project"
 
 **Use RAG for:**
 - Anthony's background, experience, personal info
