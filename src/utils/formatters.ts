@@ -68,6 +68,39 @@ function formatGitHubResponse(data: Record<string, unknown>): string {
     return data.error as string;
   }
 
+  // Check if we have the new data structure
+  if (data.username && data.pinnedRepos) {
+    const username = data.username as string;
+    const profileUrl = data.profileUrl as string;
+    const totalContributions = data.totalContributions as number;
+    const pinnedRepos = data.pinnedRepos as Array<{
+      name: string;
+      description?: string;
+      url: string;
+      stars: number;
+    }>;
+
+    if (!username || !pinnedRepos.length) {
+      return MESSAGES.github.noProfile;
+    }
+
+    let formatted = `In the last year I've had about 📦 **${totalContributions.toLocaleString()}** contributions on [**GitHub**](${profileUrl})\n\n`;
+    formatted += "## Here's some of my pinned repos:\n\n";
+
+    const repoList = pinnedRepos
+      .map((repo) => {
+        const description = repo.description ? `\n  ${repo.description}` : '';
+        const stars = repo.stars > 0 ? ` ⭐ ${repo.stars}` : '';
+        return `- **[${repo.name}](${repo.url})**${stars}${description}`;
+      })
+      .join('\n');
+
+    formatted += repoList;
+
+    return formatted;
+  }
+
+  // Fallback to old structure for backward compatibility
   if (!data.activity || !data.profile) {
     return MESSAGES.github.noActivity;
   }
