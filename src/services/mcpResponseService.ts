@@ -10,10 +10,11 @@ import type { ChatRequest } from '@/types';
 
 export interface MCPToolCall {
   name: string;
+  arguments?: Record<string, unknown>;
 }
 
 export interface MCPToolResult {
-  content: Array<{ text: string }>;
+  content: Array<{ type: string; text: string }>;
   isError?: boolean;
 }
 
