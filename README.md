@@ -1,7 +1,3 @@
-# To-do
-
-- [ ] Update npm scripts in Readme
-
 # Signal Backend
 
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
@@ -107,12 +103,12 @@ for the specific task at hand.
 
 ```bash
 npm run dev          # Start dev server with nodemon
-npm run build        # Type-check TypeScript (no emit)
 npm run start        # Start production server
 npm run lint         # Run ESLint
 npm run lint:fix     # Fix linting issues
 npm run type-check   # Type-check TypeScript (no emit)
 npm run format       # Format code with Prettier
+npm run format:check # Check code formatting
 ```
 
 ## Signal Context
