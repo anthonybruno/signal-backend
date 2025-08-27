@@ -252,4 +252,10 @@ export class RAGService {
       return false;
     }
   }
+
+  // Public method to get RAG context for tool execution
+  async getContextForTool(message: string): Promise<string> {
+    const context = await this.retrieveContext(message);
+    return context || 'No relevant context found.';
+  }
 }

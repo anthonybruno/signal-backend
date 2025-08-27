@@ -4,23 +4,92 @@ import { getEnv } from '@/config/env';
 import type { ChatMessage, ChatResponse, ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
-import { formatSystemPrompt, SYSTEM_PROMPT } from '@/utils/prompts';
+import { SYSTEM_PROMPT } from '@/utils/prompts';
 
-export interface IntentDecision {
-  useRAG: boolean;
-  mcpTool: string;
-  reasoning: string;
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
 }
+
+const TOOL_DEFINITIONS = [
+  {
+    type: 'function',
+    function: {
+      name: 'use_rag',
+      description:
+        "Use RAG knowledge base for questions about Anthony's background, experience, skills, personal values, interests, or past projects. Use this when someone asks about Anthony specifically.",
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_current_spotify_track',
+      description:
+        "Get the currently playing track from Anthony's Spotify account. Use this for questions about current music, what's playing now, or music preferences.",
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_github_activity',
+      description:
+        "Get recent GitHub activity and profile information. Use this for questions about Anthony's current projects, recent code contributions, or GitHub profile.",
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_latest_blog_post',
+      description:
+        "Get the latest blog post from Anthony's blog. Use this for questions about recent writing, current thoughts, or latest blog content.",
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_project_info',
+      description:
+        'Get information about this specific project. Use this for questions about the current project, its purpose, or technical details.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+];
 
 export class LLMService {
   private readonly openRouterClient: AxiosInstance;
   private readonly defaultModel: string;
-  private readonly intentDispatcherModel: string;
 
   constructor() {
     const env = getEnv();
     this.defaultModel = env.DEFAULT_MODEL;
-    this.intentDispatcherModel = env.INTENT_DISPATCHER_MODEL;
 
     this.openRouterClient = axios.create({
       baseURL: 'https://openrouter.ai/api/v1',
@@ -33,34 +102,44 @@ export class LLMService {
     });
   }
 
-  getDefaultModel(): string {
-    return this.defaultModel;
-  }
+  async generateResponseWithTools(
+    request: ChatRequest,
+    onChunk: (chunk: string) => void,
+  ): Promise<{ toolCalls?: ToolCall[]; content?: string }> {
+    const { message, history = [] } = request;
 
-  getSystemPrompt(contextChunks: string[] = []): string {
-    return formatSystemPrompt(contextChunks);
-  }
+    const messages: ChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: message },
+    ];
 
-  async analyzeIntent(prompt: string): Promise<IntentDecision> {
     try {
       const response = await this.openRouterClient.post('/chat/completions', {
-        model: this.intentDispatcherModel,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.1,
-        max_tokens: 200,
+        model: this.defaultModel,
+        messages,
+        tools: TOOL_DEFINITIONS,
+        tool_choice: 'auto',
+        temperature: 0.9,
+        max_tokens: 4000,
+        stream: false,
       });
 
       const { choices } = response.data;
-      if (!choices?.[0]?.message?.content) {
-        throw new Error('No routing decision received');
-      }
+      const responseMessage = choices[0]?.message;
 
-      const content = choices[0].message.content.trim();
-      const jsonText = this.extractJsonFromResponse(content);
-      return JSON.parse(jsonText);
+      if (
+        responseMessage?.tool_calls &&
+        responseMessage.tool_calls.length > 0
+      ) {
+        return { toolCalls: responseMessage.tool_calls as ToolCall[] };
+      } else {
+        await this.streamResponse(messages, { onChunk });
+        return { content: 'Streamed response' };
+      }
     } catch (error) {
-      logger.error('Intent analysis failed:', error);
-      throw this.createIntentError(error);
+      logger.error('Tool calling failed:', error);
+      throw this.createToolCallingError(error);
     }
   }
 
@@ -78,7 +157,7 @@ export class LLMService {
           model: this.defaultModel,
           messages,
           temperature: 0.9,
-          max_tokens: options?.maxTokens || 4000,
+          max_tokens: 4000,
           stream: true,
         },
         { responseType: 'stream' },
@@ -108,9 +187,7 @@ export class LLMService {
                 fullContent += content;
                 options?.onChunk?.(content);
               }
-            } catch {
-              // Skip invalid JSON lines
-            }
+            } catch {}
           }
         });
 
@@ -129,40 +206,13 @@ export class LLMService {
     }
   }
 
-  async executeDirectLLMFlow(
-    request: ChatRequest,
-    onChunk: (chunk: string) => void,
-  ): Promise<void> {
-    const { message, history = [] } = request;
-
-    const messages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...history,
-      { role: 'user', content: message },
-    ];
-
-    await this.streamResponse(messages, {
-      onChunk,
-    });
-  }
-
-  private extractJsonFromResponse(content: string): string {
-    if (content.startsWith('```json')) {
-      return content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    }
-    if (content.startsWith('```')) {
-      return content.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
-    return content;
-  }
-
-  private createIntentError(error: unknown): Error {
+  private createToolCallingError(error: unknown): Error {
     if (axios.isAxiosError(error)) {
       return new Error(
-        `Intent analysis failed: ${error.response?.data?.error?.message ?? error.message}`,
+        `Tool calling failed: ${error.response?.data?.error?.message ?? error.message}`,
       );
     }
-    return new Error('Failed to analyze user intent');
+    return new Error('Failed to call tools');
   }
 
   private createStreamingError(error: unknown): Error {
