@@ -1,6 +1,6 @@
 import type { ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
-import { formatRoutingPrompt } from '@/utils/prompts';
+import { formatIntentAnalysisPrompt } from '@/utils/prompts';
 
 import { LLMService, type IntentDecision } from './llmService';
 import { MCPResponseService } from './mcpResponseService';
@@ -42,8 +42,8 @@ export class OrchestrationService {
   // Intent analysis
   private async analyzeIntent(message: string): Promise<IntentDecision> {
     try {
-      const routingPrompt = formatRoutingPrompt(message);
-      return await this.llmService.analyzeIntent(routingPrompt);
+      const intentAnalysisPrompt = formatIntentAnalysisPrompt(message);
+      return await this.llmService.analyzeIntent(intentAnalysisPrompt);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';

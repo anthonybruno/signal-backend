@@ -10,12 +10,6 @@ import { logger } from '@/utils/logger';
 
 dotenv.config();
 
-// Add immediate console logging for debugging
-console.log('Starting Signal Backend...');
-console.log(`Current working directory: ${process.cwd()}`);
-console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`PORT: ${process.env.PORT ?? 3000}`);
-
 const app = express();
 const PORT = process.env['PORT'] ?? 3000;
 
@@ -81,12 +75,9 @@ app.use((req, res) => {
 // SIMPLIFIED: Just initialize ChromaDB connection (no embedding generation)
 const initializeServices = async () => {
   try {
-    console.log('Initializing ChromaDB connection...');
     await initializeChromaDB();
-    console.log('ChromaDB connection established');
-    logger.info('Backend ready: ChromaDB connection established');
+    logger.info('ChromaDB connection established');
   } catch (error) {
-    console.error('ChromaDB connection failed:', error);
     logger.error(
       'Backend degraded: ChromaDB connection failed. RAG features will be disabled.',
     );
@@ -97,9 +88,6 @@ const initializeServices = async () => {
 };
 
 const server = app.listen(PORT, () => {
-  console.log(
-    `🚀 Signal Backend running on port ${PORT} in ${process.env['NODE_ENV'] ?? 'development'} mode`,
-  );
   logger.info(`Backend started on port ${PORT}`);
 });
 

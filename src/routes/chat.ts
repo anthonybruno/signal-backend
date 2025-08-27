@@ -35,30 +35,19 @@ router.post('/', validateChatMessage, async (req: Request, res: Response) => {
       'Access-Control-Allow-Headers': 'Cache-Control',
     });
 
-    let content = '';
-    let mcpTool: string | undefined;
-
     await orchestrationService.handleChatRequest(
       validatedData,
       (chunk: string) => {
         res.write(`${JSON.stringify({ type: 'chunk', data: chunk })}\n`);
-        content += chunk;
       },
       (tool: string) => {
-        mcpTool = tool;
         res.write(
           `${JSON.stringify({ type: 'tools_starting', data: { tool } })}\n`,
         );
       },
     );
 
-    res.write(
-      `${JSON.stringify({
-        type: 'done',
-        data: { content, mcp_tool: mcpTool },
-      })}\n`,
-    );
-
+    res.write(`${JSON.stringify({ type: 'done' })}\n`);
     res.end();
   } catch (error) {
     logger.error('Chat streaming error:', {

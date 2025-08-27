@@ -23,12 +23,9 @@ export const initializeChromaDB = async (): Promise<ChromaClient> => {
     const port = env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : '';
     const connectionUrl = `${protocol}://${env.CHROMA_HOST}${port}`;
 
-    logger.info(`Connecting to ChromaDB at: ${connectionUrl}`);
-
     chromaClient = new ChromaClient({ path: connectionUrl });
 
     await chromaClient.heartbeat();
-    logger.info('ChromaDB connection established');
 
     return chromaClient;
   } catch (error) {

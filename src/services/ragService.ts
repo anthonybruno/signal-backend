@@ -3,7 +3,7 @@ import { OpenAIEmbeddingFunction, type ChromaClient } from 'chromadb';
 import { getEnv } from '@/config/env';
 import type { ChatRequest, ChatMessage } from '@/types';
 import { logger } from '@/utils/logger';
-import { RAG_SYSTEM_PROMPT } from '@/utils/prompts';
+import { SYSTEM_PROMPT } from '@/utils/prompts';
 
 export interface SearchResult {
   query: string;
@@ -43,7 +43,7 @@ export class RAGService {
 
     this.embeddingFunction = new OpenAIEmbeddingFunction({
       openai_api_key: getEnv().OPENAI_API_KEY,
-      openai_model: 'text-embedding-3-small',
+      openai_model: 'text-embedding-3-large',
     });
 
     return this.embeddingFunction;
@@ -67,7 +67,7 @@ export class RAGService {
 
   async searchSimilarContent(
     query: string,
-    resultCount = 5,
+    resultCount = 10,
   ): Promise<SearchResult> {
     try {
       const collection = await this.retrieveCollection();
@@ -132,11 +132,83 @@ export class RAGService {
   }
 
   private async retrieveContext(message: string): Promise<string | null> {
-    const searchResults = await this.searchSimilarContent(message, 3);
-    const retrievedChunks = searchResults.results.map(
-      (result) => result.content,
+    const searchResults = await this.searchSimilarContent(message, 20);
+
+    if (searchResults.results.length === 0) {
+      logger.info('RAG: No documents retrieved');
+      return null;
+    }
+
+    const sortedResults = searchResults.results.sort(
+      (a, b) => (a.distance || 1) - (b.distance || 1),
     );
-    return retrievedChunks.length > 0 ? retrievedChunks.join('\n\n') : null;
+
+    const maxTotalLength = 10000;
+    let totalLength = 0;
+    const selectedChunks: typeof sortedResults = [];
+
+    const topRelevant = sortedResults.slice(0, 3);
+    for (const result of topRelevant) {
+      if (totalLength + result.content.length > maxTotalLength) break;
+      selectedChunks.push(result);
+      totalLength += result.content.length;
+    }
+
+    const remainingChunks = sortedResults.slice(20);
+    const usedSources = new Set(selectedChunks.map((c) => c.metadata?.source));
+    const usedSections = new Set(
+      selectedChunks.map((c) => c.metadata?.section),
+    );
+
+    for (const result of remainingChunks) {
+      if (totalLength + result.content.length > maxTotalLength) break;
+
+      const source = result.metadata?.source;
+      const section = result.metadata?.section;
+
+      const isNewSource = source && !usedSources.has(source);
+      const isNewSection = section && !usedSections.has(section);
+
+      if (isNewSource || isNewSection) {
+        selectedChunks.push(result);
+        totalLength += result.content.length;
+        if (source) usedSources.add(source);
+        if (section) usedSections.add(section);
+      }
+    }
+
+    for (const result of remainingChunks) {
+      if (totalLength + result.content.length > maxTotalLength) break;
+      if (!selectedChunks.includes(result)) {
+        selectedChunks.push(result);
+        totalLength += result.content.length;
+      }
+    }
+
+    const context = selectedChunks
+      .map((result) => {
+        const source = result.metadata?.source as string;
+        const section = result.metadata?.section as string;
+        const chunkIndex = result.metadata?.chunkIndex as number;
+        const totalChunks = result.metadata?.totalChunks as number;
+
+        let header = '';
+        if (source && section) {
+          header = `[From ${source} - ${section}`;
+          if (
+            typeof chunkIndex === 'number' &&
+            typeof totalChunks === 'number'
+          ) {
+            header += ` (chunk ${chunkIndex + 1} of ${totalChunks})`;
+          }
+          header += ']\n';
+        }
+
+        return `${header}${result.content}`;
+      })
+      .join('\n\n---\n\n');
+
+    return context;
   }
 
   private createRAGMessages(
@@ -147,7 +219,7 @@ export class RAGService {
     const contextMessage = `Context about Anthony Bruno:\n${context}\n\nUser question: ${message}`;
 
     return [
-      { role: 'system', content: RAG_SYSTEM_PROMPT },
+      { role: 'system', content: SYSTEM_PROMPT },
       ...history,
       { role: 'user', content: contextMessage },
     ];

@@ -4,7 +4,7 @@ import { getEnv } from '@/config/env';
 import type { ChatMessage, ChatResponse, ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
-import { formatSystemPrompt, DIRECT_LLM_SYSTEM_PROMPT } from '@/utils/prompts';
+import { formatSystemPrompt, SYSTEM_PROMPT } from '@/utils/prompts';
 
 export interface IntentDecision {
   useRAG: boolean;
@@ -77,7 +77,7 @@ export class LLMService {
         {
           model: this.defaultModel,
           messages,
-          temperature: 0.7,
+          temperature: 0.9,
           max_tokens: options?.maxTokens || 4000,
           stream: true,
         },
@@ -136,7 +136,7 @@ export class LLMService {
     const { message, history = [] } = request;
 
     const messages: ChatMessage[] = [
-      { role: 'system', content: DIRECT_LLM_SYSTEM_PROMPT },
+      { role: 'system', content: SYSTEM_PROMPT },
       ...history,
       { role: 'user', content: message },
     ];
