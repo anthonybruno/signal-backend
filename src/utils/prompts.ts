@@ -84,10 +84,13 @@ export function createMessages(
     userContent = `Context about Anthony Bruno:\n${options.context}\n\nUser question: ${message}`;
   }
 
-  // Build base message: prompt + conversation + user message
+  // Message and response
+  const MAX_HISTORY_MESSAGES = 5;
+  const optimizedHistory = history.slice(-MAX_HISTORY_MESSAGES * 2);
+
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...history,
+    ...optimizedHistory,
     { role: 'user', content: userContent },
   ];
 
