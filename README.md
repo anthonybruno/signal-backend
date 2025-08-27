@@ -9,44 +9,23 @@ and responses between services.
 
 ## What it does
 
-The backend API acts as the orchestrator of the Signal system. It receives queries from the
-frontend, determines whether to route them to the RAG server, the MCP server, or directly to an LLM
-via OpenRouter. It also handles formatting and streaming of responses, giving structure to how
-context and actions are bundled and passed through the system. It reflects full-stack architectural
-thinking and service orchestration.
+The backend API acts as the orchestrator of the Signal system. It receives queries from the frontend
+and intelligently routes them to the most appropriate service. It handles formatting and streaming
+of responses, giving structure to how context and actions are bundled and passed through the system.
 
 ## Request Flow Architecture
 
 ```
-  Frontend → Backend API → Smart Routing
-                   │
-                   ▼
-        Intent Analysis (OpenRouter)
-                   │
-    ┌──────────────┼──────────────┐
-    ▼              ▼              ▼
-RAG Server     MCP Server    Direct Path
-(Personal)    (Live Data)  (to OpenRouter)
-    │              │              │
-    └──────────────┼──────────────┘
-                   │
-                   ▼
-          OpenRouter Processing
-           (with base prompts)
-                   │
-                   ▼
-           Response Streaming
-                   │
-                   ▼
-           Frontend Display
+[Frontend] → [Backend] → [OpenRouter] → [RAG/MCP/Direct] → [Response] → [Frontend]
 ```
 
-When a user sends a message, the backend first analyzes what type of information they need. Based on
-this analysis, it routes the request to the most appropriate service:
+When a user sends a message, the backend uses
+[OpenRouter's native tool calling](https://openrouter.ai/docs/features/tool-calling) to determine
+the most appropriate service for their request. Based on this analysis, it routes the request to:
 
-- **RAG Server**: For questions about my personal experience, projects, or background
-- **MCP Server**: For real-time data like current GitHub activity or Spotify listening
-- **Direct Path**: For general conversation or creative tasks
+- **RAG Service**: For questions about personal experience, projects, or background
+- **MCP Service**: For real-time data like current GitHub activity or Spotify listening
+- **Direct Response**: For general conversation or creative tasks
 
 The chosen service processes the request and returns relevant information, which gets formatted and
 streamed back to the frontend for display.
@@ -75,29 +54,22 @@ npm run dev
 
 - Node.js + Express
 - TypeScript
-- OpenRouter LLM API
-- RESTful endpoint design
-
-## LLM Models
-
-The backend uses different LLM models for different purposes:
-
-- **Intent Analysis & Routing**:
-  [Gemini 2.0 Flash](https://openrouter.ai/google/gemini-2.0-flash-001) for fast, cost-effective
-  model for determining whether to route requests to RAG, MCP tools, or direct LLM processing.
-- **Main Processing**: [Claude 3.5 Sonnet](https://openrouter.ai/anthropic/claude-3.5-sonnet) for
-  high-quality model for generating responses, handling conversation, and processing context.
-
-The system intelligently routes queries based on intent analysis, then uses the appropriate model
-for the specific task at hand.
+- OpenRouter
 
 ## Architecture Notes
 
 ### Integration Points
 
-- RAG Server: Adds document-based memory and context
-- MCP Server: Adds live data from GitHub, Spotify, and blog feeds
+- RAG Service: Adds document-based memory and context
+- MCP Service: Adds live data from GitHub, Spotify, and blog feeds
 - Frontend: Receives streamed LLM response via `/chat`
+
+### Key Features
+
+- **Unified LLM Flow**: Single OpenRouter call handles routing and processing
+- **Native Tool Calling**: Leverages OpenRouter's built-in tool capabilities
+- **Smart History Management**: Optimizes conversation context for efficiency
+- **Streaming Responses**: Real-time delivery of LLM responses
 
 ## Development Workflow
 
