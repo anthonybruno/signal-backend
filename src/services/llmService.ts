@@ -4,7 +4,7 @@ import { getEnv } from '@/config/env';
 import type { ChatMessage, ChatResponse, ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
-import { SYSTEM_PROMPT } from '@/utils/prompts';
+import { createMessages } from '@/utils/prompts';
 
 export interface ToolCall {
   id: string;
@@ -106,13 +106,7 @@ export class LLMService {
     request: ChatRequest,
     onChunk: (chunk: string) => void,
   ): Promise<{ toolCalls?: ToolCall[]; content?: string }> {
-    const { message, history = [] } = request;
-
-    const messages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...history,
-      { role: 'user', content: message },
-    ];
+    const messages = createMessages(request);
 
     try {
       const response = await this.openRouterClient.post('/chat/completions', {

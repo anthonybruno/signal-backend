@@ -3,7 +3,7 @@ import { OpenAIEmbeddingFunction, type ChromaClient } from 'chromadb';
 import { getEnv } from '@/config/env';
 import type { ChatRequest, ChatMessage } from '@/types';
 import { logger } from '@/utils/logger';
-import { SYSTEM_PROMPT } from '@/utils/prompts';
+import { createMessages } from '@/utils/prompts';
 
 export interface SearchResult {
   query: string;
@@ -124,7 +124,7 @@ export class RAGService {
         return;
       }
 
-      const messages = this.createRAGMessages(request, context);
+      const messages = createMessages(request, { context });
       await llmService.streamResponse(messages, { onChunk });
     } catch (_error) {
       await fallbackHandler(request, onChunk);
@@ -209,20 +209,6 @@ export class RAGService {
       .join('\n\n---\n\n');
 
     return context;
-  }
-
-  private createRAGMessages(
-    request: ChatRequest,
-    context: string,
-  ): ChatMessage[] {
-    const { message, history = [] } = request;
-    const contextMessage = `Context about Anthony Bruno:\n${context}\n\nUser question: ${message}`;
-
-    return [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...history,
-      { role: 'user', content: contextMessage },
-    ];
   }
 
   async getCollectionStatus() {

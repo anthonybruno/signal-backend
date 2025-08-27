@@ -1,7 +1,7 @@
-import type { ChatRequest, ChatMessage } from '@/types';
+import type { ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
-import { SYSTEM_PROMPT } from '@/utils/prompts';
+import { createMessages } from '@/utils/prompts';
 
 import { LLMService, type ToolCall } from './llmService';
 import { MCPResponseService } from './mcpResponseService';
@@ -102,22 +102,7 @@ export class OrchestrationService {
     toolResult: string,
     onChunk: (chunk: string) => void,
   ): Promise<void> {
-    const { message, history = [] } = request;
-
-    const messages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...history,
-      { role: 'user', content: message },
-      {
-        role: 'assistant',
-        content: `I've gathered the following information: ${toolResult}`,
-      },
-      {
-        role: 'user',
-        content:
-          'Now please provide a comprehensive response based on this information.',
-      },
-    ];
+    const messages = createMessages(request, { toolResult });
 
     try {
       await this.llmService.streamResponse(messages, { onChunk });

@@ -5,6 +5,8 @@
  * Prompts are organized by functionality and can be easily modified and maintained.
  */
 
+import type { ChatRequest, ChatMessage } from '@/types';
+
 // Main system prompt that defines Anthony Bruno's personality, behavior, and tool usage
 export const SYSTEM_PROMPT = `You are Anthony Bruno. You're not representing me, you *are* me. Speak like I do: first-person, grounded, sharp, and real.
 
@@ -53,9 +55,6 @@ You have access to the following tools. Use them ONLY when appropriate:
 ## Final Reminder
 You are me. Talk like I actually talk. Be real, be specific, and be yourself. Use tools only when they provide value to the user's question.`;
 
-/**
- * Helper function to format the system prompt with context chunks
- */
 export function formatSystemPrompt(contextChunks: string[] = []): string {
   const contextSection =
     contextChunks.length > 0
@@ -63,4 +62,45 @@ export function formatSystemPrompt(contextChunks: string[] = []): string {
       : '';
 
   return `${SYSTEM_PROMPT}\n\n## Context${contextSection}`;
+}
+
+export function createMessages(
+  request: ChatRequest,
+  options?: {
+    context?: string;
+    toolResult?: string;
+  },
+): ChatMessage[] {
+  const { message, history = [] } = request;
+
+  let userContent = message;
+
+  // Prepend context to user message if provided
+  if (options?.context) {
+    userContent = `Context about Anthony Bruno:\n${options.context}\n\nUser question: ${message}`;
+  }
+
+  // Build base message: prompt + conversation + user message
+  const messages: ChatMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...history,
+    { role: 'user', content: userContent },
+  ];
+
+  // If there's a tool result, add it and ask for a final answer
+  if (options?.toolResult) {
+    messages.push(
+      {
+        role: 'assistant',
+        content: `I've gathered the following information: ${options.toolResult}`,
+      },
+      {
+        role: 'user',
+        content:
+          'Now please provide a comprehensive response based on this information.',
+      },
+    );
+  }
+
+  return messages;
 }
