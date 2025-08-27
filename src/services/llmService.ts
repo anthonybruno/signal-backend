@@ -117,6 +117,11 @@ export class LLMService {
         temperature: 0.9,
         max_tokens: 4000,
         stream: false,
+        cache_control: {
+          system_prompt: 'cache',
+          tools: 'cache',
+          user_messages: 'no-cache',
+        },
       });
 
       const { choices } = response.data;
@@ -153,6 +158,11 @@ export class LLMService {
           temperature: 0.9,
           max_tokens: 4000,
           stream: true,
+          // Enable OpenRouter caching for system prompts
+          cache_control: {
+            system_prompt: 'cache',
+            user_messages: 'no-cache',
+          },
         },
         { responseType: 'stream' },
       );
