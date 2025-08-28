@@ -176,37 +176,10 @@ export function formatProjectData(projectData: Record<string, unknown>): {
   data: Record<string, unknown>;
   formatted: string;
 } {
-  const data = projectData;
-  const formatted = formatProjectResponse(data);
-  return { data, formatted };
-}
-
-/**
- * Formats project response in a user-friendly way
- */
-function formatProjectResponse(data: Record<string, unknown>): string {
-  if (data.error) {
-    return data.error as string;
-  }
-
-  if (!data.name || !data.description) {
-    return 'Project information not available.';
-  }
-
-  const name = data.name as string;
-  const description = data.description as string;
-  const url = data.url as string;
-  const technologies = data.technologies as string[] | undefined;
-
-  let formatted = `# ${name}\n\n${description}`;
-
-  if (technologies && Array.isArray(technologies) && technologies.length > 0) {
-    formatted += `\n\n## Technologies\n\n${technologies.map((tech) => `- ${tech}`).join('\n')}`;
-  }
-
-  if (url) {
-    formatted += `\n\n[View on GitHub](${url})`;
-  }
-
-  return formatted;
+  return {
+    data: projectData,
+    formatted:
+      (Array.isArray(projectData.content) && projectData.content[0]?.text) ||
+      'Project information not available.',
+  };
 }
