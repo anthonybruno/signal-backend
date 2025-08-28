@@ -17,6 +17,14 @@ const chatRequestSchema = z.object({
     .string()
     .min(1, MESSAGES.validation.messageEmpty)
     .max(1000, MESSAGES.validation.messageTooLong),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant', 'system']),
+        content: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 /**

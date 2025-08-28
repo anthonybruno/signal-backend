@@ -88,7 +88,9 @@ export function createMessages(
 
   // Message and response
   const MAX_HISTORY_MESSAGES = 5;
-  const optimizedHistory = history.slice(-MAX_HISTORY_MESSAGES * 2);
+  const MAX_HISTORY_LENGTH = MAX_HISTORY_MESSAGES * 2;
+
+  const optimizedHistory = history.slice(-MAX_HISTORY_LENGTH);
 
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
