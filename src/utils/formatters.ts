@@ -176,10 +176,23 @@ export function formatProjectData(projectData: Record<string, unknown>): {
   data: Record<string, unknown>;
   formatted: string;
 } {
-  return {
-    data: projectData,
-    formatted:
-      (Array.isArray(projectData.content) && projectData.content[0]?.text) ||
-      'Project information not available.',
-  };
+  const data = projectData;
+  const formatted = formatProjectResponse(data);
+  return { data, formatted };
+}
+
+/**
+ * Formats project response in a user-friendly way
+ */
+function formatProjectResponse(data: Record<string, unknown>): string {
+  let formatted = `# ${data.name}\n\n${data.description}`;
+
+  formatted += `\n\n${data.overview}`;
+  formatted += `\n\n## Key highlights\n${(data.keyHighlights as string[]).map((highlight: string) => `- ${highlight}`).join('\n')}`;
+
+  formatted += `\n\n## Why it matters\nSignal is both portfolio and proof point:\n${(data.whyItMatters as string[]).map((point: string) => `- ${point}`).join('\n')}`;
+
+  formatted += `\n\n[View on GitHub](${data.url})`;
+
+  return formatted;
 }
