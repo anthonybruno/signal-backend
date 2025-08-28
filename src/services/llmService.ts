@@ -21,7 +21,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: 'use_rag',
       description:
-        "Use RAG knowledge base for questions about Anthony's background, experience, skills, personal values, interests, or past projects. Use this when someone asks about Anthony specifically.",
+        "Use for ANY question about Anthony's personal life: food preferences (likes/dislikes), daily habits, opinions, background, values, work style, or experiences. This includes questions about what Anthony likes, dislikes, thinks, does, or has done.",
       parameters: {
         type: 'object',
         properties: {},
