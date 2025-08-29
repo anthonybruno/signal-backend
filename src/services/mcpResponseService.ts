@@ -119,10 +119,6 @@ export class MCPResponseService {
     const startTime = Date.now();
 
     try {
-      logger.info(
-        `Generating MCP response for tools: ${tools.map((tool) => tool.name).join(', ')}`,
-      );
-
       const results: MCPToolResult[] = [];
       for (const tool of tools) {
         const result = await mcpClient.callTool(tool);
@@ -130,7 +126,6 @@ export class MCPResponseService {
       }
 
       const service = this.identifyService(tools);
-      logger.info(`Identified service: ${service}`);
 
       const { data, formatted } = this.createResponseByService(
         service,

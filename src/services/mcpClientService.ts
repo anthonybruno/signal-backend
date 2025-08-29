@@ -48,10 +48,6 @@ class MCPClientService {
    * Establishes HTTP connection to MCP server
    */
   private async connectHttp(): Promise<void> {
-    logger.info('Connecting to MCP server via HTTP', {
-      url: this.mcpServerUrl,
-    });
-
     this.httpClient = axios.create({
       baseURL: this.mcpServerUrl,
       timeout: 30000,
@@ -59,17 +55,11 @@ class MCPClientService {
     });
 
     try {
-      const healthResponse = await this.httpClient.get('/health');
-      logger.info('MCP HTTP server health check passed', {
-        status: healthResponse.status,
-      });
+      await this.httpClient.get('/health');
       this.isConnected = true;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      logger.error('MCP HTTP server health check failed', {
-        error: errorMessage,
-      });
       throw new Error(`MCP HTTP server connection failed: ${errorMessage}`);
     }
   }
@@ -78,8 +68,6 @@ class MCPClientService {
    * Establishes stdio connection to MCP server
    */
   private async connectStdio(): Promise<void> {
-    logger.info('Connecting to MCP server via stdio');
-
     const transport = new StdioClientTransport({
       command: 'node',
       args: ['dist/index.js'],
@@ -94,7 +82,6 @@ class MCPClientService {
     try {
       await this.client.connect(transport);
       this.isConnected = true;
-      logger.info('Connected to MCP server via stdio');
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -141,11 +128,6 @@ class MCPClientService {
     if (!this.isConnected) await this.connect();
 
     try {
-      logger.info('Executing MCP tool', {
-        name: toolCall.name,
-        transport: this.transportType,
-      });
-
       const response = await this.executeToolCall(toolCall);
       const content = this.normalizeResponseContent(response.content);
 
@@ -216,7 +198,6 @@ class MCPClientService {
     if (this.client) {
       try {
         await this.client.close();
-        logger.info('Disconnected from MCP server (stdio)');
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';

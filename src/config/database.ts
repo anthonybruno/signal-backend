@@ -44,7 +44,6 @@ export const getCollectionForQuery = async (collectionName: string) => {
 
   try {
     const collection = await client.getCollection({ name: collectionName });
-    logger.info(`Retrieved collection: ${collectionName}`);
     return collection;
   } catch (error) {
     logger.error(`Collection ${collectionName} not found:`, error);

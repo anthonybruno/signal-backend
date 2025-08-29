@@ -11,16 +11,10 @@ import type { ChatRequest, ChatMessage } from '@/types';
 export const SYSTEM_PROMPT = `You are Anthony Bruno. You're not representing me, you *are* me. Speak like I do: first-person, grounded, sharp, and real. When someone says 'you' or 'your', they are asking about Anthony Bruno.
 
 ## Who I Am
-I'm a frontend developer and engineering manager based in Denver. I love building things, solving problems, and helping others grow. I'm passionate about open source, side projects, and the tech community.
+I'm a frontend based engineering manager based in Denver. I love building things, solving problems, and helping others grow. I'm passionate about open source, side projects, and the tech community.
 
 ## Personal Style & Interests
 I have various personal interests and hobbies. I'm comfortable talking about both personal interests and professional topics in a conversational way, sharing my genuine thoughts and experiences rather than generic responses.
-
-## Response Context Guidelines
-- If someone asks about tech/work: Lead with professional experience but keep it personal and authentic
-- If someone asks about personal interests: Focus on the personal stuff, keep it conversational
-- If someone asks about both: Balance naturally based on what they seem most interested in
-- Always sound like me, not like a professional spokesperson
 
 ## Communication Style
 - Use first-person, be conversational and authentic
@@ -29,9 +23,12 @@ I have various personal interests and hobbies. I'm comfortable talking about bot
 - Stay grounded and real - you're Anthony, not a spokesperson
 
 ## Response Guidelines
+- If someone asks about tech/work: Lead with professional experience but keep it personal and authentic
+- If someone asks about personal interests: Focus on the personal stuff, keep it conversational
+- If someone asks about both: Balance naturally based on what they seem most interested in
 - Keep responses conversational and appropriately detailed
 - Match the user's energy - brief for quick questions, detailed for complex ones
-- Always sound like Anthony, not an AI assistant
+- Always sound like me, not like a professional spokesperson or AI assistant
 
 ## Tool Usage Guidelines
 Use these tools strategically based on the question type:
@@ -72,7 +69,7 @@ export function createMessages(
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemContent },
-    ...history,
+    ...history.filter((m) => m.role !== 'user').slice(-3),
     { role: 'user', content: message },
   ];
 
@@ -95,10 +92,17 @@ export function createMessages(
 
 function buildRAGContextPrompt(ragResults: SearchResult): string {
   if (ragResults.results.length === 0) {
-    return '**No relevant personal context available for this question.**';
+    return 'No relevant personal context available for this question.';
   }
 
-  const contextWithMetadata = ragResults.results
+  const similarityThreshold = 0.7;
+  const filteredResults = ragResults.results.filter((result) => {
+    const relevance = result.distance;
+    const similarityScore = 1 - (relevance || 0) / 2;
+    return similarityScore >= similarityThreshold;
+  });
+
+  const contextWithMetadata = filteredResults
     .map((result) => {
       const relevance = result.distance;
       const similarityScore = (1 - (relevance || 0) / 2).toFixed(2);

@@ -1,11 +1,11 @@
-import type { ChatRequest, ChatMessage } from '@/types';
+import type { ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
 import { createMessages } from '@/utils/prompts';
 
 import { LLMService, type ToolCall } from './llmService';
 import { MCPResponseService } from './mcpResponseService';
-import { RAGService, type SearchResult } from './ragService';
+import { RAGService } from './ragService';
 
 export class OrchestrationService {
   private readonly llmService = new LLMService();
@@ -18,23 +18,22 @@ export class OrchestrationService {
     onToolsStarting?: (tool: string) => void,
   ): Promise<void> {
     try {
-      const ragResults = await this.ragService.searchSimilarContent(
-        request.message,
-        5,
-      );
+      const messages = createMessages(request, {
+        ragContext: await this.ragService.findRelevantContext(
+          request.message,
+          5,
+        ),
+      });
 
-      const messages = this.buildMessagesWithContext(request, ragResults);
-
-      const response = await this.llmService.generateResponseWithTools(
+      const response = await this.llmService.generateResponse(
         request,
         onChunk,
         messages,
       );
 
-      if (response.toolCalls && response.toolCalls.length > 0) {
-        await this.executeToolCalls(
-          response.toolCalls,
-          request,
+      if (response.toolCalls?.[0]) {
+        await this.handleToolCall(
+          response.toolCalls[0],
           onChunk,
           onToolsStarting,
         );
@@ -45,72 +44,37 @@ export class OrchestrationService {
     }
   }
 
-  private async executeToolCalls(
-    toolCalls: ToolCall[],
-    request: ChatRequest,
+  private async handleToolCall(
+    toolCall: ToolCall,
     onChunk: (chunk: string) => void,
     onToolsStarting?: (tool: string) => void,
   ): Promise<void> {
-    const [toolCall] = toolCalls;
     const toolName = toolCall.function.name;
 
     try {
-      let toolResult: string;
+      if (onToolsStarting) onToolsStarting(toolName);
 
-      if (
-        [
-          'get_current_spotify_track',
-          'get_github_activity',
-          'get_latest_blog_post',
-          'get_project_info',
-        ].includes(toolName)
-      ) {
-        toolResult = await this.executeMCPTool(
-          toolName,
-          request,
-          onToolsStarting,
-        );
-        await this.streamFormattedResponse(toolResult, onChunk);
-      } else {
-        logger.warn(`Unknown tool: ${toolName}`);
-        onChunk(MESSAGES.llm.streamingFailedGeneral);
-        return;
-      }
+      const response = await this.mcpResponseService.createDirectResponse([
+        {
+          name: toolName,
+          arguments: {},
+        },
+      ]);
+
+      await this.streamResponse(response.formatted, onChunk);
     } catch (error) {
       logger.error(`Tool execution failed for ${toolName}:`, error);
       onChunk(MESSAGES.llm.streamingFailedGeneral);
     }
   }
 
-  private async executeMCPTool(
-    toolName: string,
-    request: ChatRequest,
-    onToolsStarting?: (tool: string) => void,
-  ): Promise<string> {
-    if (onToolsStarting) {
-      onToolsStarting(toolName);
-    }
-
-    const toolCalls = [{ name: toolName, arguments: {} }];
-    const response =
-      await this.mcpResponseService.createDirectResponse(toolCalls);
-    return response.formatted;
-  }
-
-  private async streamFormattedResponse(
-    formattedResponse: string,
+  private async streamResponse(
+    response: string,
     onChunk: (chunk: string) => void,
   ): Promise<void> {
-    for (const char of formattedResponse) {
+    for (const char of response) {
       onChunk(char);
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
-  }
-
-  private buildMessagesWithContext(
-    request: ChatRequest,
-    ragResults: SearchResult,
-  ): ChatMessage[] {
-    return createMessages(request, { ragContext: ragResults });
   }
 }
