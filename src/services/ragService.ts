@@ -33,7 +33,11 @@ export class RAGService {
     const protocol = env.CHROMA_PORT === 443 ? 'https' : 'http';
     const path = `${protocol}://${env.CHROMA_HOST}${env.CHROMA_PORT !== 443 ? `:${env.CHROMA_PORT}` : ''}`;
 
-    this.chromaClient = new ChromaClient({ path });
+    this.chromaClient = new ChromaClient({
+      path,
+      // Use v2 API
+      version: 'v2',
+    });
     await this.chromaClient.heartbeat();
     return this.chromaClient;
   }

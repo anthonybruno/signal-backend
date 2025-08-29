@@ -19,19 +19,6 @@ const TOOL_DEFINITIONS = [
   {
     type: 'function',
     function: {
-      name: 'use_rag',
-      description:
-        "Use for ANY question about Anthony's personal life: food preferences (likes/dislikes), daily habits, opinions, background, values, work style, or experiences. This includes questions about what Anthony likes, dislikes, thinks, does, or has done.",
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'get_current_spotify_track',
       description:
         "Get the currently playing track from Anthony's Spotify account. Use this for questions about current music, what's playing now, or music preferences.",
@@ -105,13 +92,14 @@ export class LLMService {
   async generateResponseWithTools(
     request: ChatRequest,
     onChunk: (chunk: string) => void,
+    messages?: ChatMessage[],
   ): Promise<{ toolCalls?: ToolCall[]; content?: string }> {
-    const messages = createMessages(request);
+    const finalMessages = messages || createMessages(request);
 
     try {
       const response = await this.openRouterClient.post('/chat/completions', {
         model: this.defaultModel,
-        messages,
+        messages: finalMessages,
         tools: TOOL_DEFINITIONS,
         tool_choice: 'auto',
         temperature: 0.9,
@@ -133,7 +121,7 @@ export class LLMService {
       ) {
         return { toolCalls: responseMessage.tool_calls as ToolCall[] };
       } else {
-        await this.streamResponse(messages, { onChunk });
+        await this.streamResponse(finalMessages, { onChunk });
         return { content: 'Streamed response' };
       }
     } catch (error) {
@@ -158,7 +146,6 @@ export class LLMService {
           temperature: 0.9,
           max_tokens: 4000,
           stream: true,
-          // Enable OpenRouter caching for system prompts
           cache_control: {
             system_prompt: 'cache',
             user_messages: 'no-cache',

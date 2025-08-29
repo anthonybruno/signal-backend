@@ -1,11 +1,11 @@
-import type { ChatRequest } from '@/types';
+import type { ChatRequest, ChatMessage } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
 import { createMessages } from '@/utils/prompts';
 
 import { LLMService, type ToolCall } from './llmService';
 import { MCPResponseService } from './mcpResponseService';
-import { RAGService } from './ragService';
+import { RAGService, type SearchResult } from './ragService';
 
 export class OrchestrationService {
   private readonly llmService = new LLMService();
@@ -18,9 +18,17 @@ export class OrchestrationService {
     onToolsStarting?: (tool: string) => void,
   ): Promise<void> {
     try {
+      const ragResults = await this.ragService.searchSimilarContent(
+        request.message,
+        5,
+      );
+
+      const messages = this.buildMessagesWithContext(request, ragResults);
+
       const response = await this.llmService.generateResponseWithTools(
         request,
         onChunk,
+        messages,
       );
 
       if (response.toolCalls && response.toolCalls.length > 0) {
@@ -49,10 +57,7 @@ export class OrchestrationService {
     try {
       let toolResult: string;
 
-      if (toolName === 'use_rag') {
-        toolResult = await this.executeRAGTool(request);
-        await this.generateFinalResponse(request, toolResult, onChunk);
-      } else if (
+      if (
         [
           'get_current_spotify_track',
           'get_github_activity',
@@ -77,11 +82,6 @@ export class OrchestrationService {
     }
   }
 
-  private async executeRAGTool(request: ChatRequest): Promise<string> {
-    const context = await this.ragService.getContextForTool(request.message);
-    return context;
-  }
-
   private async executeMCPTool(
     toolName: string,
     request: ChatRequest,
@@ -97,21 +97,6 @@ export class OrchestrationService {
     return response.formatted;
   }
 
-  private async generateFinalResponse(
-    request: ChatRequest,
-    toolResult: string,
-    onChunk: (chunk: string) => void,
-  ): Promise<void> {
-    const messages = createMessages(request, { toolResult });
-
-    try {
-      await this.llmService.streamResponse(messages, { onChunk });
-    } catch (error) {
-      logger.error('Final response generation failed:', error);
-      onChunk(MESSAGES.llm.streamingFailedGeneral);
-    }
-  }
-
   private async streamFormattedResponse(
     formattedResponse: string,
     onChunk: (chunk: string) => void,
@@ -120,5 +105,12 @@ export class OrchestrationService {
       onChunk(char);
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
+  }
+
+  private buildMessagesWithContext(
+    request: ChatRequest,
+    ragResults: SearchResult,
+  ): ChatMessage[] {
+    return createMessages(request, { ragContext: ragResults });
   }
 }
