@@ -1,67 +1,68 @@
 # Signal Backend
 
-[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
-[![OpenRouter](https://img.shields.io/badge/OpenRouter-LLM%20API-orange.svg)](https://openrouter.ai/)
+![Node.js](https://img.shields.io/badge/Node.js-20+-5FA04E?logo=node.js&logoColor=white&style=flat-square)
+![Express](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-4B8FE8?logo=googlegemini&logoColor=white&style=flat-square)
+![Fly.io](https://img.shields.io/badge/Hosted-Fly.io-24175B?logo=flydotio&logoColor=white&style=flat-square)
 
-[Signal's](https://github.com/anthonybruno/signal) backend API that orchestrates RAG context, LLM
-routing, and streaming responses.
+## Static portfolios are boring
+
+The backend is where Signal’s conversations get routed, enriched with context, and streamed back in
+real time. It’s the API layer that connects the frontend chat interface with retrieval, live tools,
+and model orchestration.
 
 ## What it does
 
-This server is the central orchestrator that coordinates RAG context retrieval using OpenAI
-embeddings, routes requests through OpenRouter with prompt caching and intent functionality, and
-streams personalized responses back to the frontend. It combines personal context (RAG) with AI
-capabilities to deliver intelligent, context-aware interactions.
+The backend coordinates the flow of every request in Signal. It:
 
-## Local Development
+- Performs **RAG-first retrieval** with ChromaDB to ground responses before calling a model
+- Sends a **single orchestrated request** to OpenRouter, combining user input, base instructions,
+  and retrieved context
+- Uses **OpenRouter tool-calling** to decide if a live tool (MCP integration) should be invoked
+- Orchestrates MCP calls when tools are selected, or falls back to a model response if not
+- Streams responses back to the frontend in real time
+- Provides **basic production safeguards** with rate limiting, Helmet for HTTP security headers, XSS
+  filtering, and structured console logging
 
-### Prerequisites
+This approach mirrors how production AI systems like Perplexity or Notion AI structure their
+pipelines: retrieval first, then orchestration, then model output.
 
-- Node.js 20+
-- [MCP server](https://github.com/anthonybruno/signal-mcp) running
-- [RAG server](https://github.com/anthonybruno/signal-rag) running
+## Architecture overview
 
-### Setup
+![Signal Architecture](https://github.com/user-attachments/assets/9ae777bb-9564-4168-8e72-9ffbc743ae5c)
 
-```bash
-npm install
-cp .env.example .env
-docker-compose up -d
-npm run dev
-```
+The backend acts as the hub, ensuring that every response is grounded in context and that live
+integrations are orchestrated cleanly.
 
-- **URL**: http://localhost:3000
-- **Health Check**: `GET /health`
+## Tech stack
 
-## Architecture
+- **Runtime:** Node.js
+- **Framework:** Express
+- **Retrieval:** ChromaDB (RAG)
+- **Model orchestration:** OpenRouter (tool-calling enabled)
+- **Integrations:** Model Context Protocol (MCP) for GitHub, Spotify, blog, and project info
+- **Dev tooling:** ESLint, Prettier, Husky, and shared configs via
+  [dev-config](https://www.npmjs.com/package/abruno-dev-config)
+- **Ops:** Docker for portability, GitHub Actions + semantic-release for automation
+- **Hosting:** Fly.io
 
-```
-[Frontend] → [Backend] → [RAG Service] → [OpenRouter + Context + Tools] → [Response]
-```
+## Local development
 
-## Available Scripts
+Signal’s services can be run locally, but setup involves multiple moving parts.  
+For now, the best way to explore Signal is the [live demo](https://signal.abruno.net).
 
-- `npm run dev` - Dev server with nodemon
-- `npm run start` - Production server
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix linting issues
-- `npm run type-check` - TypeScript check
-- `npm run format` - Format code with Prettier
-- `npm run format:check` - Check code formatting
+Future work may include a simplified `docker-compose` flow for local development.
 
-## Tech Stack
+## Explore
 
-- Node.js + TypeScript
-- Express.js
-- OpenRouter
-- RAG + MCP integration
+- [Overview repo](https://github.com/anthonybruno/signal)
+- [Frontend repo](https://github.com/anthonybruno/signal-frontend)
+- [RAG repo](https://github.com/anthonybruno/signal-rag)
+- [MCP repo](https://github.com/anthonybruno/signal-mcp)
+- [Live demo](https://signal.abruno.net)
 
-## Signal Context
+## Signal context
 
-This service is the brain of Signal's multi-service system. It demonstrates modular architecture,
-OpenRouter integration, and LLM streaming responses. As part of a broader portfolio, it showcases
-API orchestration, real-time communication, and intelligent context management.
-
-- **Additional Info**: [Signal Repo](https://github.com/anthonybruno/signal)
-- **Live Site**: [signal.abruno.net](https://signal.abruno.net)
+The backend reflects how I approach **system orchestration in AI applications**: retrieval comes
+first, models are orchestrated through a single entrypoint, and tool-calling is used selectively to
+integrate live data. This mirrors how I think about building **scalable, team-friendly systems** in
+practice.

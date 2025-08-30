@@ -1,19 +1,27 @@
 {
   "name": "signal-backend",
   "version": "0.1.0",
-  "description": "Signal's backend API that orchestrates context, routing, and responses between services.",
-  "type": "module",
-  "main": "src/index.ts",
+  "description": "The Signal backend is an Express service that handles RAG-first retrieval, OpenRouter orchestration, and tool-calling for live data, streaming results back to the frontend.",
+  "keywords": [
+    "portfolio",
+    "backend",
+    "express",
+    "nodejs",
+    "rag",
+    "openrouter",
+    "tool-calling",
+    "api",
+    "docker",
+    "signal"
+  ],
   "author": "Anthony Bruno",
   "license": "MIT",
-  "repository": "https://github.com/anthonybruno/signal-backend.git",
-  "keywords": [
-    "nodejs",
-    "api",
-    "express",
-    "llm",
-    "openrouter"
-  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthonybruno/signal-backend.git"
+  },
+  "type": "module",
+  "main": "src/index.ts",
   "scripts": {
     "dev": "nodemon --exec tsx src/index.ts",
     "start": "tsx src/index.ts",
@@ -29,7 +37,6 @@
     "axios": "^1.9.0",
     "chromadb": "^2.4.6",
     "cors": "^2.8.5",
-    "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
