@@ -37,6 +37,7 @@
     "axios": "^1.9.0",
     "chromadb": "^2.4.6",
     "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
