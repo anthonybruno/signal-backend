@@ -5,7 +5,7 @@ import {
   formatBlogData,
   formatProjectData,
 } from '@/utils/formatters';
-import { mcpClient } from '@/services/mcpClientService';
+import { mcpClient } from '@/services/mcp/mcpClientService';
 import type { ChatRequest } from '@/types';
 
 export interface MCPToolCall {

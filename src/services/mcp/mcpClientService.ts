@@ -3,7 +3,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import axios, { type AxiosInstance } from 'axios';
 
 import { getEnv } from '@/config/env';
-import type { MCPToolCall, MCPToolResult } from '@/services/mcpResponseService';
+import type {
+  MCPToolCall,
+  MCPToolResult,
+} from '@/services/mcp/mcpResponseService';
 import { logger } from '@/utils/logger';
 
 type TransportType = 'stdio' | 'http';

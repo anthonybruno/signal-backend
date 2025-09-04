@@ -7,7 +7,7 @@ import { initializeChromaDB, isChromaConnected } from '@/config/database';
 import { getEnv } from '@/config/env';
 import { createRateLimiter } from '@/middleware/rateLimit';
 import { router as chatRoutes } from '@/routes/chat';
-import { IntentEmbeddingsService } from '@/services/intentEmbeddingsService';
+import { IntentEmbeddingsService } from '@/services/rag/intentEmbeddingsService';
 import { logger } from '@/utils/logger';
 
 dotenv.config();

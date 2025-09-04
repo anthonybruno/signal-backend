@@ -2,8 +2,8 @@ import { type QueryResult } from 'chromadb';
 
 import { getCollectionForQuery } from '@/config/database';
 import { getEnv } from '@/config/env';
-import { CohereService } from '@/services/cohereService';
-import { IntentEmbeddingsService } from '@/services/intentEmbeddingsService';
+import { CohereService } from '@/services/rag/cohereService';
+import { IntentEmbeddingsService } from '@/services/rag/intentEmbeddingsService';
 import { type ChatMessage } from '@/types/index';
 import { type RetrievalDecision, type IntentEmbeddings } from '@/types/rag';
 import { DocumentProcessor } from '@/utils/documentProcessor';

@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 
-import type { SpotifyTrackData } from '@/services/mcpResponseService';
+import type { SpotifyTrackData } from '@/services/mcp/mcpResponseService';
 import { MESSAGES } from '@/utils/messages';
 
 /**

@@ -1,3 +1,5 @@
+import { MCPResponseService } from '@/services/mcp/mcpResponseService';
+import { RAGService } from '@/services/rag/ragService';
 import type { ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
@@ -5,8 +7,6 @@ import { createMessageThread } from '@/utils/messageUtils';
 import { StreamingUtils } from '@/utils/streaming';
 
 import { LLMService, type ToolCall } from './llmService';
-import { MCPResponseService } from './mcpResponseService';
-import { RAGService } from './ragService';
 
 export class OrchestrationService {
   private readonly llmService = new LLMService();
