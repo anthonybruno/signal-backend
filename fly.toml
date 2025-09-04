@@ -13,6 +13,7 @@ primary_region = "dfw"  # Dallas
   DEFAULT_MODEL = "google/gemini-2.5-flash"
   LOG_LEVEL = "error"
   MCP_SERVER_URL = "https://signal-mcp.fly.dev"
+  MCP_TRANSPORT = "http"
   NODE_ENV = "production"
   OPENAI_EMBEDDING_MODEL = "text-embedding-3-large"
   PORT = "3000"

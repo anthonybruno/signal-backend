@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import axios, { type AxiosInstance } from 'axios';
 
+import { getEnv } from '@/config/env';
 import type { MCPToolCall, MCPToolResult } from '@/services/mcpResponseService';
 import { logger } from '@/utils/logger';
 
@@ -23,9 +24,8 @@ class MCPClientService {
   async connect(): Promise<void> {
     if (this.isConnected) return;
 
-    this.transportType =
-      process.env.MCP_TRANSPORT === 'http' ? 'http' : 'stdio';
-    this.mcpServerUrl = process.env.MCP_SERVER_URL || 'http://localhost:3001';
+    this.transportType = getEnv().MCP_TRANSPORT === 'http' ? 'http' : 'stdio';
+    this.mcpServerUrl = getEnv().MCP_SERVER_URL || 'http://localhost:3001';
 
     try {
       if (this.transportType === 'http') {

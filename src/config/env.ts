@@ -14,6 +14,7 @@ const envSchema = z.object({
   DEFAULT_MODEL: z.string().min(1),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   MCP_SERVER_URL: z.string().min(1),
+  MCP_TRANSPORT: z.enum(['stdio', 'http']).default('http'),
   NODE_ENV: z.enum(['development', 'production']).default('development'),
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_EMBEDDING_MODEL: z.string().min(1),
