@@ -11,6 +11,45 @@ export interface IntentEmbeddings {
   [key: string]: number[];
 }
 
+const INTENT_CATEGORIES: Record<string, string[]> = {
+  resume: [
+    'Show me your resume',
+    'Do you have a resume?',
+    'Tell me about your work history',
+    'What jobs have you had?',
+    'Where did you go to school?',
+    'What companies have you worked at?',
+    'List your past experience',
+    'What is your career background?',
+    'Tell me your job titles',
+    'Summarize your professional history',
+  ],
+  faq: [
+    'What is your name?',
+    'Where do you live?',
+    'What is your favorite food?',
+    'How old are you?',
+    'What are your hobbies?',
+    'What do you do for fun?',
+    'What languages do you speak?',
+    'What are your strengths?',
+    'What is your favorite book?',
+    'What is your favorite movie?',
+  ],
+  blog: [
+    'Show me your blog posts',
+    'Do you have a blog?',
+    'What articles have you written?',
+    'Where can I read your writing?',
+    'Can I see some essays?',
+    'Do you publish online?',
+    "Share something you've written",
+    'What topics do you write about?',
+    'Do you keep a journal?',
+    'Can I read your published work?',
+  ],
+};
+
 export class IntentEmbeddingsService {
   private embeddings: IntentEmbeddings | null = null;
   private readonly embeddingFunction: OpenAIEmbeddingFunction;
@@ -19,9 +58,21 @@ export class IntentEmbeddingsService {
     this.embeddingFunction = createEmbeddingFunction();
   }
 
-  /**
-   * Initialize intent embeddings
-   */
+  private getIntentEmbeddingsPath(): string {
+    return getEnv().NODE_ENV === 'production'
+      ? '/tmp/intentEmbeddings.json'
+      : path.join(process.cwd(), 'intentEmbeddings.json');
+  }
+
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await fs.promises.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   public async initialize(): Promise<void> {
     if (this.embeddings) {
       return;
@@ -35,11 +86,8 @@ export class IntentEmbeddingsService {
     }
   }
 
-  /**
-   * Load existing intent embeddings from JSON file
-   */
   public async loadIntentEmbeddings(): Promise<IntentEmbeddings> {
-    const filePath = path.join(process.cwd(), 'intentEmbeddings.json');
+    const filePath = this.getIntentEmbeddingsPath();
 
     try {
       const data = await fs.promises.readFile(filePath, 'utf8');
@@ -51,87 +99,35 @@ export class IntentEmbeddingsService {
     }
   }
 
-  /**
-   * Get the loaded embeddings
-   */
   public getEmbeddings(): IntentEmbeddings | null {
     return this.embeddings;
   }
 
-  /**
-   * Generate embeddings for intent categories
-   */
   private async generateIntentEmbeddings(): Promise<IntentEmbeddings> {
-    if (getEnv().NODE_ENV !== 'production') {
-      const localFilePath = path.join(process.cwd(), 'intentEmbeddings.json');
-      try {
-        await fs.promises.access(localFilePath);
-        logger.info(`Loaded intent embeddings from file ${localFilePath}`);
-        return await this.loadIntentEmbeddings();
-      } catch {
-        // File doesn't exist, continue with generation
-      }
+    const filePath = this.getIntentEmbeddingsPath();
+    const isProduction = getEnv().NODE_ENV === 'production';
+
+    if (!isProduction && (await this.fileExists(filePath))) {
+      logger.info(`Loading intent embeddings from file ${filePath}`);
+      return await this.loadIntentEmbeddings();
     }
 
-    const categories: Record<string, string[]> = {
-      resume: [
-        'Show me your resume',
-        'Do you have a resume?',
-        'Tell me about your work history',
-        'What jobs have you had?',
-        'Where did you go to school?',
-        'What companies have you worked at?',
-        'List your past experience',
-        'What is your career background?',
-        'Tell me your job titles',
-        'Summarize your professional history',
-      ],
-      faq: [
-        'What is your name?',
-        'Where do you live?',
-        'What is your favorite food?',
-        'How old are you?',
-        'What are your hobbies?',
-        'What do you do for fun?',
-        'What languages do you speak?',
-        'What are your strengths?',
-        'What is your favorite book?',
-        'What is your favorite movie?',
-      ],
-      blog: [
-        'Show me your blog posts',
-        'Do you have a blog?',
-        'What articles have you written?',
-        'Where can I read your writing?',
-        'Can I see some essays?',
-        'Do you publish online?',
-        "Share something you've written",
-        'What topics do you write about?',
-        'Do you keep a journal?',
-        'Can I read your published work?',
-      ],
-    };
-
+    logger.info('Generating new intent embeddings');
     const intentEmbeddings: IntentEmbeddings = {};
 
-    for (const [key, phrases] of Object.entries(categories)) {
+    for (const [key, phrases] of Object.entries(INTENT_CATEGORIES)) {
       logger.info(`Generating intent embeddings for category: ${key}`);
       const [embedding] = await this.embeddingFunction.generate(phrases);
       intentEmbeddings[key] = embedding;
     }
 
-    const filePath =
-      getEnv().NODE_ENV === 'production'
-        ? '/tmp/intentEmbeddings.json'
-        : path.join(process.cwd(), 'intentEmbeddings.json');
-
-    try {
-      await fs.promises.access(filePath);
+    // Clean up existing file if it exists
+    if (await this.fileExists(filePath)) {
       logger.info('Deleting existing intent embeddings file');
       await fs.promises.unlink(filePath);
-    } catch {
-      // File doesn't exist, which is fine
     }
+
+    // Save new embeddings
     await fs.promises.writeFile(
       filePath,
       JSON.stringify(intentEmbeddings, null, 2),
