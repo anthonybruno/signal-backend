@@ -7,6 +7,8 @@ import {
   type ChromaMetadata,
 } from '@/types/rag';
 
+import { logger } from './logger';
+
 export class DocumentProcessor {
   /**
    * Creates ranked documents by combining Cohere rerank results with ChromaDB metadata
@@ -18,11 +20,13 @@ export class DocumentProcessor {
     const documents = chromaResults.documents[0] as [];
     const metadatas = chromaResults.metadatas[0] as unknown as ChromaMetadata[];
 
-    return cohereResults.results.map((result) => ({
+    const rankedDocuments = cohereResults.results.map((result) => ({
       text: documents[result.index],
       source: metadatas[result.index].source,
       relevance: Math.round(result.relevance_score * 1000) / 1000,
     }));
+    logger.info('Ranked documents:', rankedDocuments);
+    return rankedDocuments;
   }
 
   /**

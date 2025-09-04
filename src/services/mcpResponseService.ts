@@ -77,6 +77,7 @@ export interface ProjectInfoData {
 
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
+import { StreamingUtils } from '@/utils/streaming';
 
 export class MCPResponseService {
   async executeMCPFlow(
@@ -105,14 +106,8 @@ export class MCPResponseService {
     formattedResponse: string,
     onChunk: (chunk: string) => void,
   ): Promise<void> {
-    const words = formattedResponse.split(/(\s+)/);
-
-    for (const word of words) {
-      if (word) {
-        onChunk(word);
-        await new Promise((resolve) => setTimeout(resolve, 25));
-      }
-    }
+    // Use centralized streaming utility with streaming enabled
+    await StreamingUtils.streamResponse(formattedResponse, onChunk);
   }
 
   async createDirectResponse(tools: MCPToolCall[]): Promise<MCPDirectResponse> {

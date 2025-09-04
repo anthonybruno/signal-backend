@@ -2,6 +2,7 @@ import type { ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
 import { createMessageThread } from '@/utils/messageUtils';
+import { StreamingUtils } from '@/utils/streaming';
 
 import { LLMService, type ToolCall } from './llmService';
 import { MCPResponseService } from './mcpResponseService';
@@ -70,9 +71,7 @@ export class OrchestrationService {
     response: string,
     onChunk: (chunk: string) => void,
   ): Promise<void> {
-    for (const char of response) {
-      onChunk(char);
-      await new Promise((resolve) => setTimeout(resolve, 1));
-    }
+    // Use centralized streaming utility with streaming enabled
+    await StreamingUtils.streamResponse(response, onChunk);
   }
 }
