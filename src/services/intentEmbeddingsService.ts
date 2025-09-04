@@ -104,15 +104,14 @@ export class IntentEmbeddingsService {
 
     for (const [key, phrases] of Object.entries(categories)) {
       logger.info(`Generating intent embeddings for category: ${key}`);
-      const embeddings = await this.embeddingFunction.generate(phrases);
-      intentEmbeddings[key] = embeddings;
+      const [embedding] = await this.embeddingFunction.generate(phrases);
+      intentEmbeddings[key] = embedding;
     }
 
-    // Save to JSON file
     const filePath = path.join(process.cwd(), 'intentEmbeddings.json');
     try {
       await fs.promises.access(filePath);
-      logger.info('🗑️ Deleting existing intent embeddings file');
+      logger.info('Deleting existing intent embeddings file');
       await fs.promises.unlink(filePath);
     } catch {
       // File doesn't exist, which is fine
@@ -121,7 +120,7 @@ export class IntentEmbeddingsService {
       filePath,
       JSON.stringify(intentEmbeddings, null, 2),
     );
-    logger.info('✅ Saved intent embeddings file');
+    logger.info('Saved intent embeddings file');
 
     return intentEmbeddings;
   }
