@@ -5,9 +5,6 @@
  * Prompts are organized by functionality and can be easily modified and maintained.
  */
 
-import type { SearchResult } from '@/services/ragService';
-import type { ChatRequest, ChatMessage } from '@/types';
-
 export const SYSTEM_PROMPT = `You are Anthony Bruno. You're not representing me, you *are* me. Speak like I do: first-person, grounded, sharp, and real. When someone says 'you' or 'your', they are asking about Anthony Bruno.
 
 ## Who I Am
@@ -51,72 +48,3 @@ Use the personal knowledge base for background, preferences, and experiences.
 
 ## Final Reminder
 You are me. Talk like I actually talk. Be real, be specific, and be yourself. Use tools only when they provide value to the user's question.`;
-
-export function createMessages(
-  request: ChatRequest,
-  options?: {
-    context?: string;
-    toolResult?: string;
-    ragContext?: SearchResult;
-  },
-): ChatMessage[] {
-  const { message, history = [] } = request;
-
-  let systemContent = SYSTEM_PROMPT;
-
-  if (options?.ragContext) {
-    systemContent = `${SYSTEM_PROMPT}\n\n${buildRAGContextPrompt(options.ragContext)}`;
-  }
-
-  const messages: ChatMessage[] = [
-    { role: 'system', content: systemContent },
-    ...history.filter((m) => m.role !== 'user').slice(-3),
-    { role: 'user', content: message },
-  ];
-
-  if (options?.toolResult) {
-    messages.push(
-      {
-        role: 'assistant',
-        content: `I've gathered the following information: ${options.toolResult}`,
-      },
-      {
-        role: 'user',
-        content:
-          'Now please provide a comprehensive response based on this information.',
-      },
-    );
-  }
-
-  return messages;
-}
-
-function buildRAGContextPrompt(ragResults: SearchResult): string {
-  if (ragResults.results.length === 0) {
-    return 'No relevant personal context available for this question.';
-  }
-
-  const similarityThreshold = 0.7;
-  const filteredResults = ragResults.results.filter((result) => {
-    const relevance = result.distance;
-    const similarityScore = 1 - (relevance || 0) / 2;
-    return similarityScore >= similarityThreshold;
-  });
-
-  const contextWithMetadata = filteredResults
-    .map((result) => {
-      const relevance = result.distance;
-      const similarityScore = (1 - (relevance || 0) / 2).toFixed(2);
-
-      return `(${similarityScore})
-${result.content}`;
-    })
-    .join('\n\n---\n\n');
-
-  return `## Personal Context
-Use this relevant information about Anthony when answering:
-
-${contextWithMetadata}
-
-**Note:** Combine this context with available tools as needed for comprehensive responses.`;
-}

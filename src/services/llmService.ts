@@ -3,7 +3,7 @@ import axios, { type AxiosInstance } from 'axios';
 import { getEnv } from '@/config/env';
 import type { ChatMessage, ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
-import { createMessages } from '@/utils/prompts';
+import { createMessageThread } from '@/utils/messageUtils';
 
 export interface ToolCall {
   id: string;
@@ -95,7 +95,7 @@ export class LLMService {
     onChunk: (chunk: string) => void,
     messages?: ChatMessage[],
   ): Promise<{ toolCalls?: ToolCall[]; content?: string }> {
-    const messagesToSend = messages || createMessages(request);
+    const messagesToSend = messages || createMessageThread(request);
 
     try {
       const response = await this.openRouterClient.post(

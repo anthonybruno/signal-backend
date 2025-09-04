@@ -5,22 +5,22 @@ import { z } from 'zod';
 dotenv.config();
 
 const envSchema = z.object({
-  // Required (no defaults - must be set)
-  OPENROUTER_API_KEY: z.string().min(1),
-  OPENAI_API_KEY: z.string().min(1),
-  DEFAULT_MODEL: z.string().min(1),
+  ALLOWED_ORIGINS: z.string().min(1),
+  CHAT_HISTORY_LIMIT: z.coerce.number().min(1),
   CHROMA_COLLECTION: z.string().min(1),
-
-  // Optional with simple defaults
-  PORT: z.string().default('3000').transform(Number),
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
-  CHROMA_HOST: z.string().default('localhost'),
-  CHROMA_PORT: z.string().default('8000').transform(Number),
-  MCP_SERVER_URL: z.string().default('http://localhost:3001'),
-  ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
+  CHROMA_HOST: z.string().min(1),
+  CHROMA_PORT: z.coerce.number().min(1),
+  COHERE_API_KEY: z.string().min(1),
+  DEFAULT_MODEL: z.string().min(1),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  MCP_SERVER_URL: z.string().min(1),
+  NODE_ENV: z.enum(['development', 'production']).default('development'),
+  OPENAI_API_KEY: z.string().min(1),
+  OPENAI_EMBEDDING_MODEL: z.string().min(1),
+  OPENROUTER_API_KEY: z.string().min(1),
+  PORT: z.coerce.number().min(1),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

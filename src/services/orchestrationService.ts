@@ -1,7 +1,7 @@
 import type { ChatRequest } from '@/types';
 import { logger } from '@/utils/logger';
 import { MESSAGES } from '@/utils/messages';
-import { createMessages } from '@/utils/prompts';
+import { createMessageThread } from '@/utils/messageUtils';
 
 import { LLMService, type ToolCall } from './llmService';
 import { MCPResponseService } from './mcpResponseService';
@@ -18,17 +18,15 @@ export class OrchestrationService {
     onToolsStarting?: (tool: string) => void,
   ): Promise<void> {
     try {
-      const messages = createMessages(request, {
-        ragContext: await this.ragService.findRelevantContext(
-          request.message,
-          5,
-        ),
+      const ragContext = createMessageThread({
+        message: request.message,
+        history: await this.ragService.generateContext(request.message),
       });
 
       const response = await this.llmService.generateResponse(
         request,
         onChunk,
-        messages,
+        ragContext,
       );
 
       if (response.toolCalls?.[0]) {

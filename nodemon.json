@@ -1,0 +1,10 @@
+{
+  "ignore": [
+    "intentEmbeddings.json",
+    "node_modules/**/*",
+    "dist/**/*",
+    "logs/**/*"
+  ],
+  "watch": ["src/**/*"],
+  "ext": "ts,js,json"
+}

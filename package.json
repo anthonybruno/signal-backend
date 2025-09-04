@@ -32,10 +32,11 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@chroma-core/openai": "^0.1.7",
     "@modelcontextprotocol/sdk": "^1.13.1",
     "abruno-dev-config": "^1.0.5",
     "axios": "^1.9.0",
-    "chromadb": "^2.4.6",
+    "chromadb": "^3.0.14",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",

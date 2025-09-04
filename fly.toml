@@ -5,9 +5,20 @@ primary_region = "dfw"  # Dallas
   dockerfile = "Dockerfile"
 
 [env]
+  ALLOWED_ORIGINS = "https://signal.abruno.net"
+  CHAT_HISTORY_LIMIT = "3"
+  CHROMA_COLLECTION = "signal_knowledge"
+  CHROMA_HOST = "signal-rag-chroma.internal"
+  CHROMA_PORT = "8000"
+  DEFAULT_MODEL = "google/gemini-2.5-flash"
+  LOG_LEVEL = "error"
+  MCP_SERVER_URL = "https://signal-mcp.fly.dev"
   NODE_ENV = "production"
+  OPENAI_EMBEDDING_MODEL = "text-embedding-3-large"
   PORT = "3000"
-  LOG_LEVEL = "debug"
+  RATE_LIMIT_MAX_REQUESTS = "20"
+  RATE_LIMIT_WINDOW_MS = "60000"
+
 
 [http_service]
   internal_port = 3000
