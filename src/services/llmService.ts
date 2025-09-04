@@ -75,7 +75,7 @@ export class LLMService {
 
   constructor() {
     const env = getEnv();
-    this.defaultModel = env.DEFAULT_MODEL;
+    this.defaultModel = env.OPENROUTER_MODEL;
 
     this.openRouterClient = axios.create({
       baseURL: 'https://openrouter.ai/api/v1',
@@ -105,7 +105,7 @@ export class LLMService {
           messages: messagesToSend,
           tools: TOOL_DEFINITIONS,
           tool_choice: 'auto',
-          temperature: 0.9,
+          temperature: getEnv().OPENROUTER_TEMP,
           max_tokens: 4000,
           stream: true,
           cache_control: {

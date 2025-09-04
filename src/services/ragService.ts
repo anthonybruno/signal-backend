@@ -89,7 +89,7 @@ export class RAGService {
       };
     }
 
-    logger.info('Uncertain match');
+    logger.info('Weak match');
     return {
       retrievalCutoff: getEnv().RETRIEVAL_WEAK_CUTOFF,
       metadata: null,

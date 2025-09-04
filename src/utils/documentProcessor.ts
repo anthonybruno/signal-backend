@@ -20,13 +20,11 @@ export class DocumentProcessor {
     const documents = chromaResults.documents[0] as [];
     const metadatas = chromaResults.metadatas[0] as unknown as ChromaMetadata[];
 
-    const rankedDocuments = cohereResults.results.map((result) => ({
+    return cohereResults.results.map((result) => ({
       text: documents[result.index],
       source: metadatas[result.index].source,
       relevance: Math.round(result.relevance_score * 1000) / 1000,
     }));
-    logger.info('Ranked documents:', rankedDocuments);
-    return rankedDocuments;
   }
 
   /**
@@ -36,9 +34,17 @@ export class DocumentProcessor {
     retrievalCutoff: number,
     rankedDocuments: RankedDocument[],
   ): RankedDocument[] {
-    return rankedDocuments.filter(
+    const filteredDocuments = rankedDocuments.filter(
       (document) => document.relevance >= retrievalCutoff,
     );
+
+    logger.info('Filtered documents', {
+      rankedDocuments,
+      filteredDocuments,
+      retrievalCutoff,
+    });
+
+    return filteredDocuments;
   }
 
   /**
@@ -46,7 +52,7 @@ export class DocumentProcessor {
    */
   convertToChatMessages(documents: RankedDocument[]): ChatMessage[] {
     return documents.map((doc) => ({
-      role: 'assistant',
+      role: 'system',
       content: `[Source: ${doc.source} | Relevance: ${doc.relevance}] ${doc.text}`,
     }));
   }
