@@ -1,5 +1,6 @@
-import { ChromaClient, type QueryResult } from 'chromadb';
+import { type QueryResult } from 'chromadb';
 
+import { getCollectionForQuery } from '@/config/database';
 import { getEnv } from '@/config/env';
 import { CohereService } from '@/services/cohereService';
 import { IntentEmbeddingsService } from '@/services/intentEmbeddingsService';
@@ -15,14 +16,12 @@ export class RAGService {
   private readonly intentEmbeddingsService: IntentEmbeddingsService;
   private readonly cohereService: CohereService;
   private readonly documentProcessor: DocumentProcessor;
-  private readonly chromaClient: ChromaClient;
 
   constructor() {
     this.collectionName = getEnv().CHROMA_COLLECTION;
     this.intentEmbeddingsService = new IntentEmbeddingsService();
     this.cohereService = new CohereService();
     this.documentProcessor = new DocumentProcessor();
-    this.chromaClient = new ChromaClient();
   }
 
   public async generateContext(query: string): Promise<ChatMessage[]> {
@@ -74,9 +73,10 @@ export class RAGService {
     if (score >= 0.6) {
       logger.info('Strong match');
       return {
-        retrievalCutoff: intent === 'resume' ? 0 : 0.2,
+        retrievalCutoff:
+          intent === 'resume' ? 0 : getEnv().RETRIEVAL_STRONG_CUTOFF,
         metadata: { source: intent },
-        top_k: 20,
+        top_k: getEnv().RETRIEVAL_STRONG_TOP_K,
       };
     }
 
@@ -85,15 +85,15 @@ export class RAGService {
       return {
         retrievalCutoff: 0.7,
         metadata: null,
-        top_k: 10,
+        top_k: getEnv().RETRIEVAL_MIDDLE_TOP_K,
       };
     }
 
     logger.info('Uncertain match');
     return {
-      retrievalCutoff: 0.4,
+      retrievalCutoff: getEnv().RETRIEVAL_WEAK_CUTOFF,
       metadata: null,
-      top_k: 25,
+      top_k: getEnv().RETRIEVAL_WEAK_TOP_K,
     };
   }
 
@@ -122,9 +122,7 @@ export class RAGService {
     query: string,
     retrievalStrategy: RetrievalDecision,
   ): Promise<QueryResult | null> {
-    const collection = await this.chromaClient.getCollection({
-      name: this.collectionName,
-    });
+    const collection = await getCollectionForQuery(this.collectionName);
     const chromaResults: QueryResult = await collection.query({
       queryTexts: [query],
       where: retrievalStrategy.metadata || undefined,

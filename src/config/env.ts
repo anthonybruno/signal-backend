@@ -21,6 +21,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().min(1),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1),
+  RETRIEVAL_MIDDLE_CUTOFF: z.coerce.number().min(0).max(1),
+  RETRIEVAL_MIDDLE_TOP_K: z.coerce.number().min(1),
+  RETRIEVAL_STRONG_CUTOFF: z.coerce.number().min(0).max(1),
+  RETRIEVAL_STRONG_TOP_K: z.coerce.number().min(1),
+  RETRIEVAL_WEAK_CUTOFF: z.coerce.number().min(0).max(1),
+  RETRIEVAL_WEAK_TOP_K: z.coerce.number().min(1),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 
-import { initializeChromaDB } from '@/config/database';
+import { initializeChromaDB, isChromaConnected } from '@/config/database';
 import { getEnv } from '@/config/env';
 import { createRateLimiter } from '@/middleware/rateLimit';
 import { router as chatRoutes } from '@/routes/chat';
@@ -35,9 +35,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check route
 app.get('/health', (_, res) => {
+  const chromaStatus = isChromaConnected() ? 'connected' : 'disconnected';
+
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
+    services: {
+      chromaDB: chromaStatus,
+    },
   });
 });
 
@@ -56,14 +61,12 @@ app.use((req, res) => {
 const initializeServices = async () => {
   try {
     await initializeChromaDB();
-    logger.info('ChromaDB connection established');
-
     const intentEmbeddingsService = new IntentEmbeddingsService();
     await intentEmbeddingsService.initialize();
   } catch (_error) {
-    logger.error(
-      'Backend degraded: Service initialization failed. Some features may be disabled.',
-    );
+    if (getEnv().NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 };
 
