@@ -104,13 +104,11 @@ export class RAGService {
     let bestIntent = 'unknown';
     let bestScore = -Infinity;
 
-    for (const [intent, protoVecs] of Object.entries(intentEmbeddings)) {
-      for (const protoVec of protoVecs) {
-        const score = cosineSimilarity(queryEmbedding, [protoVec]);
-        if (score > bestScore) {
-          bestScore = score;
-          bestIntent = intent;
-        }
+    for (const [intent, intentVector] of Object.entries(intentEmbeddings)) {
+      const score = cosineSimilarity(queryEmbedding, intentVector);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIntent = intent;
       }
     }
 
