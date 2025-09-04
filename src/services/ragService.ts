@@ -70,14 +70,9 @@ export class RAGService {
     intent: string,
     score: number,
   ): RetrievalDecision {
-    let retrievalStrategy: RetrievalDecision = {
-      retrievalCutoff: getEnv().RETRIEVAL_WEAK_CUTOFF,
-      metadata: null,
-      top_k: getEnv().RETRIEVAL_WEAK_TOP_K,
-    };
     if (score >= 0.6) {
       logger.info('Strong match');
-      retrievalStrategy = {
+      return {
         retrievalCutoff:
           intent === 'resume' ? 0 : getEnv().RETRIEVAL_STRONG_CUTOFF,
         metadata: { source: intent },
@@ -87,16 +82,19 @@ export class RAGService {
 
     if (score >= 0.4) {
       logger.info('Middle match');
-      retrievalStrategy = {
-        retrievalCutoff: getEnv().RETRIEVAL_MIDDLE_CUTOFF,
+      return {
+        retrievalCutoff: 0.7,
         metadata: null,
         top_k: getEnv().RETRIEVAL_MIDDLE_TOP_K,
       };
     }
 
     logger.info('Uncertain match');
-    logger.debug('Retrieval strategy:', retrievalStrategy);
-    return retrievalStrategy;
+    return {
+      retrievalCutoff: getEnv().RETRIEVAL_WEAK_CUTOFF,
+      metadata: null,
+      top_k: getEnv().RETRIEVAL_WEAK_TOP_K,
+    };
   }
 
   private classifyQuery(
