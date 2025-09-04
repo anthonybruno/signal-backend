@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+import { getEnv } from '@/config/env';
 import { createEmbeddingFunction } from '@/utils/embeddings';
 import { logger } from '@/utils/logger';
 
@@ -61,6 +62,17 @@ export class IntentEmbeddingsService {
    * Generate embeddings for intent categories
    */
   private async generateIntentEmbeddings(): Promise<IntentEmbeddings> {
+    if (getEnv().NODE_ENV !== 'production') {
+      const localFilePath = path.join(process.cwd(), 'intentEmbeddings.json');
+      try {
+        await fs.promises.access(localFilePath);
+        logger.info(`Loaded intent embeddings from file ${localFilePath}`);
+        return await this.loadIntentEmbeddings();
+      } catch {
+        // File doesn't exist, continue with generation
+      }
+    }
+
     const categories: Record<string, string[]> = {
       resume: [
         'Show me your resume',
@@ -108,7 +120,11 @@ export class IntentEmbeddingsService {
       intentEmbeddings[key] = embedding;
     }
 
-    const filePath = path.join(process.cwd(), 'intentEmbeddings.json');
+    const filePath =
+      getEnv().NODE_ENV === 'production'
+        ? '/tmp/intentEmbeddings.json'
+        : path.join(process.cwd(), 'intentEmbeddings.json');
+
     try {
       await fs.promises.access(filePath);
       logger.info('Deleting existing intent embeddings file');
@@ -120,7 +136,7 @@ export class IntentEmbeddingsService {
       filePath,
       JSON.stringify(intentEmbeddings, null, 2),
     );
-    logger.info('Saved intent embeddings file');
+    logger.info(`Saved intent embeddings file to ${filePath}`);
 
     return intentEmbeddings;
   }

@@ -58,10 +58,8 @@ const initializeServices = async () => {
     await initializeChromaDB();
     logger.info('ChromaDB connection established');
 
-    if (getEnv().NODE_ENV !== 'development') {
-      const intentEmbeddingsService = new IntentEmbeddingsService();
-      await intentEmbeddingsService.initialize();
-    }
+    const intentEmbeddingsService = new IntentEmbeddingsService();
+    await intentEmbeddingsService.initialize();
   } catch (_error) {
     logger.error(
       'Backend degraded: Service initialization failed. Some features may be disabled.',
