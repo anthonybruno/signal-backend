@@ -187,13 +187,9 @@ export function formatProjectData(projectData: Record<string, unknown>): {
  */
 function formatProjectResponse(data: Record<string, unknown>): string {
   let formatted = `# ${data.name}\n\n${data.description}`;
-
   formatted += `\n\n${data.overview}`;
-  formatted += `\n\n## Key highlights\n${(data.keyHighlights as string[]).map((highlight: string) => `- ${highlight}`).join('\n')}`;
-
-  formatted += `\n\n## Why it matters\nSignal is both portfolio and proof point:\n${(data.whyItMatters as string[]).map((point: string) => `- ${point}`).join('\n')}`;
-
-  formatted += `\n\n[View on GitHub](${data.url})`;
-
+  formatted += `\n\n${(data.keyHighlights as string[]).map((highlight: string) => `- ${highlight}`).join('\n')}`;
+  formatted += `\n\n## Why it matters\n${data.whyItMatters as string}`;
+  formatted += `\n\n[View on Github](${data.url})`;
   return formatted;
 }
