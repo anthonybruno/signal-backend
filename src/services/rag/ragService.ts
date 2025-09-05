@@ -83,7 +83,7 @@ export class RAGService {
     if (score >= 0.4) {
       logger.info('Middle match');
       return {
-        retrievalCutoff: 0.7,
+        retrievalCutoff: getEnv().RETRIEVAL_MIDDLE_CUTOFF,
         metadata: null,
         top_k: getEnv().RETRIEVAL_MIDDLE_TOP_K,
       };

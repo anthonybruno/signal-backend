@@ -45,7 +45,7 @@ function formatSpotifyResponse(data: SpotifyTrackData): string {
     }
   }
 
-  return `About **${timeAgo}** I listened 💿 to: [${data.track} by ${data.artist}](${data.url})`;
+  return `About **${timeAgo.replace('about ', '')}** I listened to [${data.track} by ${data.artist}](${data.url})`;
 }
 
 /**
@@ -84,18 +84,19 @@ function formatGitHubResponse(data: Record<string, unknown>): string {
       return MESSAGES.github.noProfile;
     }
 
-    let formatted = `In the last year I've had about 📦 **${totalContributions.toLocaleString()}** contributions on [**GitHub**](${profileUrl})\n\n`;
-    formatted += "## Here's some of my pinned repos:\n\n";
+    let formatted = '';
+    formatted += `In the last year I've had about **${totalContributions.toLocaleString()}** contributions on [**Github**](${profileUrl})\n\n`;
+    formatted += '**Here are some of my pinned repos:**\n';
 
     const repoList = pinnedRepos
       .map((repo) => {
         const description = repo.description ? `\n  ${repo.description}` : '';
-        const stars = repo.stars > 0 ? ` ⭐ ${repo.stars}` : '';
-        return `- **[${repo.name}](${repo.url})**${stars}${description}`;
+        return `- **[${repo.name}](${repo.url})**${description}`;
       })
       .join('\n');
 
     formatted += repoList;
+    formatted += `\n\nSee more on [my Github profile](${profileUrl})`;
 
     return formatted;
   }
@@ -162,7 +163,7 @@ function formatBlogResponse(data: Record<string, unknown>): string {
       }
     }
 
-    return `My latest blog post **${timeAgo}** ✍️ was: [${title}](${link})`;
+    return `My latest blog post **${timeAgo}** was: [${title}](${link})`;
   }
 
   // No blog posts available
