@@ -36,18 +36,6 @@ const INTENT_CATEGORIES: Record<string, string[]> = {
     'What is your favorite book?',
     'What is your favorite movie?',
   ],
-  blog: [
-    'Show me your blog posts',
-    'Do you have a blog?',
-    'What articles have you written?',
-    'Where can I read your writing?',
-    'Can I see some essays?',
-    'Do you publish online?',
-    "Share something you've written",
-    'What topics do you write about?',
-    'Do you keep a journal?',
-    'Can I read your published work?',
-  ],
 };
 
 export class IntentEmbeddingsService {
